@@ -41,12 +41,12 @@ def register(http, callback=CALLBACK):
     )
 
 
-def begin(http, info, resource=None):
+def begin(http, info, resource=None, callback=CALLBACK):
     response = http.get(
         "/authorize",
         params={
             "client_id": info["client_id"],
-            "redirect_uri": CALLBACK,
+            "redirect_uri": callback,
             "response_type": "code",
             "scope": "keep:read",
             "code_challenge": CHALLENGE,
@@ -171,6 +171,66 @@ def test_wrong_password_can_retry_on_same_form(client):
         location, data={"csrf": csrf, "password": PASSWORD}, follow_redirects=False
     )
     assert approved.status_code == 303 and len(oauth.codes) == 1
+
+
+@pytest.mark.parametrize(
+    "callback",
+    [
+        CALLBACK,
+        "https://chatgpt.com/connector/oauth/test-callback",
+        "http://localhost:6274/callback",
+    ],
+)
+@pytest.mark.parametrize("action", ["approve", "cancel"])
+def test_consent_policy_allows_validated_callback_on_redirect_and_retry(callback, action):
+    # Chromium also checks form-action on the cross-origin redirect after POST.
+    # HTTP clients do not enforce CSP, so a successful OAuth wire test misses this.
+    oauth = OwnerOAuth(BASE, PASSWORD, redirect_uris=(callback,))
+    with TestClient(http_app(build_server(DemoBackend(), oauth), oauth), base_url=BASE) as http:
+        info = register(http, callback).json()
+        location = begin(http, info, callback=callback).headers["location"]
+        form = http.get(location)
+        csrf = re.search(r'name="csrf" value="([^"]+)"', form.text).group(1)
+        callback_url = urlparse(callback)
+        callback_origin = callback_url.scheme + "://" + callback_url.netloc
+
+        def check_policy(response):
+            directives = {
+                parts[0]: parts[1:]
+                for item in response.headers["content-security-policy"].split(";")
+                if (parts := item.strip().split())
+            }
+            assert directives["form-action"] == ["'self'", callback_origin]
+            assert directives["default-src"] == ["'none'"]
+            assert directives["frame-ancestors"] == ["'none'"]
+            assert response.headers["cache-control"] == "no-store"
+
+        check_policy(form)
+        wrong = http.post(location, data={"csrf": csrf, "password": "fake-wrong-secret"})
+        assert wrong.status_code == 403
+        check_policy(wrong)
+        oauth.failures = [time.time()] * 5
+        limited = http.post(location, data={"csrf": csrf, "password": PASSWORD})
+        assert limited.status_code == 429
+        check_policy(limited)
+        oauth.failures.clear()
+        data = {"csrf": csrf, "password": PASSWORD}
+        if action == "cancel":
+            data["action"] = "cancel"
+        result = http.post(location, data=data, follow_redirects=False)
+        assert result.status_code == 303
+        check_policy(result)
+        target = urlparse(result.headers["location"])
+        assert (target.scheme, target.netloc, target.path) == (
+            callback_url.scheme,
+            callback_url.netloc,
+            callback_url.path,
+        )
+        values = parse_qs(target.query)
+        assert values["state"] == ["a-client-state"]
+        assert ("code" in values) == (action == "approve")
+        assert ("error" in values) == (action == "cancel")
+        assert PASSWORD not in result.headers["location"]
 
 
 def test_cancel_consent_returns_client_state_without_grant(client):

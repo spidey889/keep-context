@@ -1,5 +1,11 @@
 # Changelog
 
+## Consent callback security policy — 2026-10-06
+
+- A fresh manual connection reached consent within seconds, returned a 303, then repeated the consumed form and received 400. No ChatGPT token exchange followed. Source/header inspection found `form-action 'self'` excluded the cross-origin OAuth callback, a browser behavior the HTTP-only verifier does not enforce. This matches the observed stalled return; actual browser confirmation remains manual because the owner prohibits browser automation.
+- Consent policy now permits self and only the registered, validated callback origin, including explicit local Inspector callbacks. Initial, wrong-password, rate-limited and approval/cancel responses share the policy. Kept 303 redirects, CSRF/PKCE, redirect allowlisting, no-store and other CSP restrictions; no passwords are forwarded to the callback.
+- Six regression cases failed before the change and pass afterward, covering both ChatGPT callback forms and an explicitly allowed local callback through retries, rate limiting and approve/cancel redirects. Full Windows/Python 3.14 suite: 77 passed; lint and formatting pass. Retained the existing tunnel hostname while replacing the server. Fresh public HTTPS checks confirmed the corrected policy, confidential DCR/PKCE, retry/cancel handling and all five tools against 13 real notes; temporary verification tokens were revoked.
+
 ## Consent failure recovery — 2026-10-06
 
 - A manual ChatGPT connection reached our password page, expired, and left ChatGPT's Connect control spinning. Investigation confirmed ChatGPT registered its confidential callback-specific OAuth client but no token had been issued; HTTPS/discovery remained healthy. The exact ChatGPT UI state cannot be inspected without browser automation, which the owner prohibited.

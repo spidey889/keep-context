@@ -224,7 +224,7 @@ class OwnerOAuth(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToke
             return RedirectResponse(
                 construct_redirect_uri(str(params.redirect_uri), code=code, state=params.state),
                 status_code=303,
-                headers=HEADERS,
+                headers=self._consent_headers(pending),
             )
         return self._consent_form(pending)
 
@@ -238,8 +238,22 @@ class OwnerOAuth(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToke
                 state=pending.params.state,
             ),
             status_code=303,
-            headers=HEADERS,
+            headers=self._consent_headers(pending),
         )
+
+    def _consent_headers(self, pending: Pending) -> dict[str, str]:
+        # Chromium enforces form-action on POST redirects too. 'self' alone
+        # blocks the return to ChatGPT after the ticket has already been consumed.
+        # Permit only this registered/validated callback's origin; 303 keeps the
+        # password body on our server, while CSP still forbids unrelated targets.
+        callback = urlparse(str(pending.params.redirect_uri))
+        origin = f"{callback.scheme}://{callback.netloc}"
+        return {
+            **HEADERS,
+            "Content-Security-Policy": HEADERS["Content-Security-Policy"].replace(
+                "form-action 'self';", f"form-action 'self' {origin};"
+            ),
+        }
 
     def _consent_form(self, pending: Pending, error: str = "", status: int = 200) -> Response:
         client = self.clients[pending.client_id]
@@ -266,7 +280,10 @@ class OwnerOAuth(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToke
         return HTMLResponse(
             content,
             status_code=status,
-            headers={**HEADERS, **({"Retry-After": "60"} if status == 429 else {})},
+            headers={
+                **self._consent_headers(pending),
+                **({"Retry-After": "60"} if status == 429 else {}),
+            },
         )
 
     async def load_authorization_code(self, client, authorization_code):
