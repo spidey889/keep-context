@@ -130,7 +130,8 @@ def test_password_csrf_and_expired_flow(client):
     assert all("Google" not in str(code) for code in oauth.codes.values())
     ticket = parse_qs(urlparse(location).query)["ticket"][0]
     oauth.pending[ticket].expires = time.time() - 1
-    assert http.get(location).status_code == 400
+    response = http.get(location, follow_redirects=False)
+    assert response.status_code == 303 and "error=access_denied" in response.headers["location"]
 
 
 def test_password_rate_limit(client):
@@ -140,6 +141,77 @@ def test_password_rate_limit(client):
     for _ in range(5):
         assert http.post(location, data={"password": "wrong"}).status_code == 403
     assert http.post(location, data={"password": "wrong"}).status_code == 429
+
+
+def test_expired_consent_returns_oauth_failure_to_client(client):
+    http, oauth = client
+    info = register(http).json()
+    location = begin(http, info).headers["location"]
+    ticket = parse_qs(urlparse(location).query)["ticket"][0]
+    oauth.pending[ticket].expires = time.time() - 1
+    response = http.get(location, follow_redirects=False)
+    assert response.status_code == 303
+    target = urlparse(response.headers["location"])
+    values = parse_qs(target.query)
+    assert target.scheme + "://" + target.netloc + target.path == CALLBACK
+    assert values["error"] == ["access_denied"] and values["state"] == ["a-client-state"]
+    assert not oauth.codes and not oauth.access
+
+
+def test_wrong_password_can_retry_on_same_form(client):
+    http, oauth = client
+    info = register(http).json()
+    location = begin(http, info).headers["location"]
+    csrf = re.search(r'name="csrf" value="([^"]+)"', http.get(location).text).group(1)
+    wrong = http.post(location, data={"csrf": csrf, "password": "fake-secret-wrong"})
+    assert wrong.status_code == 403
+    assert '<form method="post">' in wrong.text and "fake-secret-wrong" not in wrong.text
+    assert "Cancel" in wrong.text
+    approved = http.post(
+        location, data={"csrf": csrf, "password": PASSWORD}, follow_redirects=False
+    )
+    assert approved.status_code == 303 and len(oauth.codes) == 1
+
+
+def test_cancel_consent_returns_client_state_without_grant(client):
+    http, oauth = client
+    info = register(http).json()
+    location = begin(http, info).headers["location"]
+    csrf = re.search(r'name="csrf" value="([^"]+)"', http.get(location).text).group(1)
+    response = http.post(location, data={"csrf": csrf, "action": "cancel"}, follow_redirects=False)
+    assert response.status_code == 303
+    values = parse_qs(urlparse(response.headers["location"]).query)
+    assert values["error"] == ["access_denied"] and values["state"] == ["a-client-state"]
+    assert not oauth.pending and not oauth.codes and not oauth.access
+
+
+def test_cancel_requires_csrf_but_works_when_password_attempts_are_limited(client):
+    http, oauth = client
+    info = register(http).json()
+    location = begin(http, info).headers["location"]
+    csrf = re.search(r'name="csrf" value="([^"]+)"', http.get(location).text).group(1)
+    assert http.post(location, data={"action": "cancel"}).status_code == 403
+    oauth.failures = [time.time()] * 5
+    response = http.post(location, data={"csrf": csrf, "action": "cancel"}, follow_redirects=False)
+    assert response.status_code == 303 and not oauth.pending and not oauth.codes
+
+
+def test_expired_pending_survives_other_request_pruning_only_for_failure_callback(client):
+    http, oauth = client
+    info = register(http).json()
+    location = begin(http, info).headers["location"]
+    ticket = parse_qs(urlparse(location).query)["ticket"][0]
+    oauth.pending[ticket].expires = time.time() - 1
+    oauth._prune()
+    assert ticket in oauth.pending
+    response = http.post(location, data={"password": PASSWORD}, follow_redirects=False)
+    assert response.status_code == 303 and not oauth.codes and ticket not in oauth.pending
+    other = begin(http, info).headers["location"]
+    other_ticket = parse_qs(urlparse(other).query)["ticket"][0]
+    oauth.pending[other_ticket].expires = time.time() - 1801
+    oauth._prune()
+    assert other_ticket not in oauth.pending
+    assert http.get(other).status_code == 400
 
 
 def test_pkce_audience_expiry_rotation_and_replay(client):

@@ -1,5 +1,12 @@
 # Changelog
 
+## Consent failure recovery — 2026-10-06
+
+- A manual ChatGPT connection reached our password page, expired, and left ChatGPT's Connect control spinning. Investigation confirmed ChatGPT registered its confidential callback-specific OAuth client but no token had been issued; HTTPS/discovery remained healthy. The exact ChatGPT UI state cannot be inspected without browser automation, which the owner prohibited.
+- Reproduced an expired consent request returning a plain 400 instead of an OAuth error callback, and wrong passwords losing the form. Expired consent now returns `access_denied` with original client state; incorrect input keeps a blank retry form. Added a CSRF-checked Cancel action that works even during password rate limiting. Expired callback context is retained briefly only to deliver failure; the five-minute grant expiry remains enforced.
+- All 71 tests pass on Windows/Python 3.14, with passing lint/format checks. Five new regression cases cover expiry callback/state, retry, cancellation/CSRF/rate limits and expired-context cleanup; the three primary cases failed before the fix.
+- Replaced the running server while preserving its existing tunnel hostname and encrypted OAuth client registrations. The fresh real HTTPS check passed confidential callback-specific DCR/PKCE, wrong-password recovery, cancellation, all five tools against 13 notes, and revocation. Temporary diagnostics record only fixed route names, method, time and status; no secrets or note content. The already-stuck ChatGPT attempt still needs a fresh user-initiated connection.
+
 ## Live account verification — 2026-10-06
 
 - The owner completed setup and verified 13 Keep notes. A fresh doctor connection and a real public HTTPS OAuth/MCP check using the official MCP client independently passed against the connected account.

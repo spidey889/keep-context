@@ -111,7 +111,10 @@ class OwnerOAuth(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToke
 
     def _prune(self):
         now = time.time()
-        self.pending = {k: v for k, v in self.pending.items() if v.expires > now}
+        # Keep expired requests briefly so their validated callback and state can
+        # return an OAuth failure to the client, rather than leave its popup waiting.
+        # They cannot issue grants after expires; the dictionary remains bounded.
+        self.pending = {k: v for k, v in self.pending.items() if v.expires + 1800 > now}
         for mapping in (self.codes, self.access, self.refresh):
             for key in list(mapping):
                 if mapping[key].expires_at is not None and mapping[key].expires_at <= now:
@@ -176,30 +179,34 @@ class OwnerOAuth(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToke
         pending = self.pending.get(ticket)
         if pending is None:
             return HTMLResponse(
-                "Sign-in expired. Start the connection again in ChatGPT.",
+                "<h1>This connection link is no longer available</h1>"
+                "<p>Your password and saved Google account have not expired. "
+                "Close this tab and start a new connection in ChatGPT.</p>"
+                '<p><a href="https://chatgpt.com/plugins">Return to ChatGPT</a></p>',
                 status_code=400,
                 headers=HEADERS,
             )
+        if pending.expires <= time.time():
+            return self._deny(ticket, pending, "Sign-in expired. Please connect again.")
         if request.method == "POST":
-            if len(self.failures) >= 5:
-                return HTMLResponse(
-                    "Too many attempts. Wait one minute and try again.",
-                    status_code=429,
-                    headers={**HEADERS, "Retry-After": "60"},
-                )
             form = await request.form()
             csrf = str(form.get("csrf", ""))
             password = str(form.get("password", ""))
+            valid_csrf = secrets.compare_digest(csrf, pending.csrf)
+            if valid_csrf and form.get("action") == "cancel":
+                return self._deny(ticket, pending, "Connection cancelled. You can connect again.")
+            if len(self.failures) >= 5:
+                return self._consent_form(
+                    pending, "Too many attempts. Wait one minute, then try again.", 429
+                )
             if (
-                not secrets.compare_digest(csrf, pending.csrf)
+                not valid_csrf
                 or len(password) > 1024
                 or not secrets.compare_digest(self._hash(password), self.password_hash)
             ):
                 self.failures.append(time.time())
-                return HTMLResponse(
-                    "Sign-in failed. Go back and try your connection password again.",
-                    status_code=403,
-                    headers=HEADERS,
+                return self._consent_form(
+                    pending, "Sign-in failed. Try your Keep Context connection password again.", 403
                 )
             self.pending.pop(ticket)
             code = secrets.token_urlsafe(32)
@@ -219,8 +226,25 @@ class OwnerOAuth(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToke
                 status_code=303,
                 headers=HEADERS,
             )
+        return self._consent_form(pending)
+
+    def _deny(self, ticket: str, pending: Pending, message: str) -> Response:
+        self.pending.pop(ticket, None)
+        return RedirectResponse(
+            construct_redirect_uri(
+                str(pending.params.redirect_uri),
+                error="access_denied",
+                error_description=message,
+                state=pending.params.state,
+            ),
+            status_code=303,
+            headers=HEADERS,
+        )
+
+    def _consent_form(self, pending: Pending, error: str = "", status: int = 200) -> Response:
         client = self.clients[pending.client_id]
         name = html.escape(client.client_name or "MCP client")
+        message = f'<p role="alert">{html.escape(error)}</p>' if error else ""
         content = f"""<!doctype html><html lang="en"><meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Connect Keep Context</title><style>
@@ -231,13 +255,19 @@ class OwnerOAuth(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToke
         small{{color:#536170}}</style><main><h1>Connect your notes</h1>
         <p>Allow <strong>{name}</strong> to search and read the Google Keep account connected
         to this server. This includes archived notes. It cannot edit or delete notes.</p>
-        <form method="post"><input type="hidden" name="csrf" value="{pending.csrf}">
+        {message}<form method="post"><input type="hidden" name="csrf" value="{pending.csrf}">
         <label for="password">Keep Context connection password</label>
         <input id="password" name="password" type="password" autocomplete="current-password"
-        required maxlength="1024"><button>Allow read access</button></form>
+        required maxlength="1024"><button>Allow read access</button>
+        <button name="action" value="cancel" formnovalidate>Cancel and return to ChatGPT</button>
+        </form>
         <p><small>Use the separate password you chose during setup. Never enter your Google
         password or Google token here.</small></p></main></html>"""
-        return HTMLResponse(content, headers=HEADERS)
+        return HTMLResponse(
+            content,
+            status_code=status,
+            headers={**HEADERS, **({"Retry-After": "60"} if status == 429 else {})},
+        )
 
     async def load_authorization_code(self, client, authorization_code):
         self._prune()
