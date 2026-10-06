@@ -9,6 +9,7 @@
   "optional_permissions": ["cookies"],
   "optional_host_permissions": ["https://accounts.google.com/*"],
   "host_permissions": ["http://127.0.0.1:8800/*"],
+  "content_scripts": [{"matches": ["http://127.0.0.1:8800/connect*"], "js": ["consent.js"], "run_at": "document_idle", "all_frames": false}],
   "background": {"service_worker": "worker.js", "type": "module"},
   "icons": {"16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png"},
   "action": {"default_popup": "popup.html", "default_title": "Keep Context", "default_icon": {"16": "icons/16.png", "32": "icons/32.png"}},

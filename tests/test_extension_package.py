@@ -30,6 +30,7 @@ def test_archive_has_exact_origin_and_no_development_material(tmp_path):
             "config.js",
             "bridge.js",
             "worker.js",
+            "consent.js",
             "popup.html",
             "popup.css",
             "popup.js",
@@ -42,7 +43,15 @@ def test_archive_has_exact_origin_and_no_development_material(tmp_path):
         assert manifest["host_permissions"] == ["https://keep.example.test/*"]
         assert manifest["optional_host_permissions"] == ["https://accounts.google.com/*"]
         assert "cookies" not in manifest["permissions"]
-        assert "content_scripts" not in manifest and "externally_connectable" not in manifest
+        assert manifest["content_scripts"] == [
+            {
+                "matches": ["https://keep.example.test/connect*"],
+                "js": ["consent.js"],
+                "run_at": "document_idle",
+                "all_frames": False,
+            }
+        ]
+        assert "externally_connectable" not in manifest
         for size, name in manifest["icons"].items():
             png = zipped.read(name)
             assert png[:8] == b"\x89PNG\r\n\x1a\n"
@@ -74,7 +83,9 @@ def test_archive_has_exact_origin_and_no_development_material(tmp_path):
 def test_static_extension_security_boundaries():
     worker = Path("extension/worker.js").read_text()
     bridge = Path("extension/bridge.js").read_text()
-    assert 'sender.url !== chrome.runtime.getURL("popup.html")' in worker
+    assert 'sender.url === chrome.runtime.getURL("popup.html")' in worker
+    assert "sender.frameId === 0" in worker
+    assert "connectionTicket(sender.url, bridge.server)" in worker
     assert "TRUSTED_CONTEXTS" in worker
     assert "console." not in bridge + worker
     assert "innerHTML" not in Path("extension/popup.js").read_text()

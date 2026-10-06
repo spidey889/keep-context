@@ -1,5 +1,12 @@
 # Changelog
 
+## Hosted ChatGPT connection recovery — 2026-10-06
+
+- At the owner's request, kept the existing preview as commit nine and recorded the expiry/inline-approval repair as a separate tenth commit. Restored the pre-repair preview parent without changing the tested implementation or running service.
+
+- The owner's fresh extension Google sign-in succeeded, but the ChatGPT popup then reported an expired link. Confirmed a saved hosted account with no issued ChatGPT grant. Reproduced the inherited five-minute deadline and loss of approval-response recovery. Hosted consent now allows 30 minutes; expired/unknown/completed flows have separate recoverable states. A still-live approval can be re-delivered only to the same owner, without another code or PKCE bypass. Google setup is preserved.
+- Replaced the toolbar-only approval handoff with an inline Allow ChatGPT button on the service's connection page. The isolated content script runs only on that configured page, ignores synthetic clicks, and sends allowlisted actions to a worker that validates Chrome's exact top-level sender/tab. It cannot access credential storage or Google pages. Separate setup tabs retain the original connection tab. Updated packaging and user guidance; 93 Python tests and 20 Node tests pass, including lost-response recovery against a real TCP MCP server. Updated the running pilot and installed preview while preserving the public origin and saved Google account. The owner confirmed real Brave approval returned to ChatGPT and ChatGPT listed their recent notes without another Google sign-in. Safe route/status diagnostics confirm approval, token exchange and MCP access. Updated the Docker smoke to verify consent controls rather than obsolete page wording.
+
 ## Simpler consumer setup preview — 2026-10-06
 
 - The owner's manual Brave installation exposed a service-preflight failure while the hosted endpoint remained healthy. Fixed the bridge's unbound native `fetch` receiver, which Node fetch and arrow-function mocks had missed. A receiver-checking regression failed with the same safe popup error before the change; all 16 Node tests and three focused packaging/TCP cases pass afterward. Updated the installed preview folder; actual browser retry and fresh Google sign-in remain manual checks.

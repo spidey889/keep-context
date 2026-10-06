@@ -11,7 +11,7 @@ uv run python scripts/package_extension.py --server https://keep.example.com --o
 uv run python scripts/package_plugin.py --server https://keep.example.com --out dist/keep-context-plugin.zip
 ```
 
-The extension ZIP contains seven runtime files and four PNG icons. The private-test ChatGPT ZIP contains only root `plugin.json` and `mcp.json`, in the portable Agent Plugins format. No static authorization headers, accounts or secrets are included. Existing archives are never silently replaced. **A ZIP that validates is not proof of actual installation or review approval.** [OpenAI package format and submission](https://developers.openai.com/plugins/deploy/submission).
+The extension ZIP contains eight runtime files and four PNG icons. Its consent script is scoped to the configured service's connection page. The private-test ChatGPT ZIP contains only root `plugin.json` and `mcp.json`, in the portable Agent Plugins format. No static authorization headers, accounts or secrets are included. Existing archives are never silently replaced. **A ZIP that validates is not proof of actual installation or review approval.** [OpenAI package format and submission](https://developers.openai.com/plugins/deploy/submission).
 
 For an invited ChatGPT test, the user can try **Plugins → Add → Upload plugin archive** with the plugin ZIP, then Connect. This route is a prepared alternative to the already documented custom MCP form; its real UI has not been verified. Keep the custom-server form as the fallback until a manual test confirms ZIP installation. A temporary tunnel archive is private test material; do not distribute it as a permanent service.
 
@@ -23,7 +23,7 @@ For an invited ChatGPT test, the user can try **Plugins → Add → Upload plugi
 4. Register the Chrome publisher, use the included icon, supply actual screenshots and accurate data/permission declarations, upload the host-specific extension, and request review. Confirm the assigned extension ID and configure `KEEP_EXTENSION_ID` if it differs. Approval of this unofficial consumer authentication approach is unverified. [Chrome publication](https://developer.chrome.com/docs/webstore/publish).
 5. Use a verified OpenAI publisher to upload the plugin draft. Complete publisher/terms/assets and actual positive/negative review cases in the dashboard, resolve automated findings and request review. The generated ZIP deliberately does not invent publisher identity, terms, screenshots or passing review cases. Publish only after approval.
 
-No billable service or store submission is created automatically by this repository. These owner actions are postponed until the preview's manual verification is available.
+No billable service or store submission is created automatically by this repository. The owner has confirmed fresh Google sign-in, inline approval and note listing in real Brave/ChatGPT. Stable hosting and store submissions remain deferred; browser permission removal and plugin ZIP installation still need manual verification.
 
 ## Prepared icons
 

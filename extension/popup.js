@@ -15,13 +15,18 @@ async function refresh() {
   if (busy) return;
   try {
     const state = await send("status");
-    for (const id of ["start", "google", "working", "connected", "approve"]) $(id).hidden = id !== state.phase;
+    const phase = state.phase === "done" ? "connected" : state.phase;
+    for (const id of ["start", "google", "working", "connected", "approve", "resume", "retry-chatgpt"]) $(id).hidden = id !== phase;
     $("retry").hidden = true;
     $("invitation-row").hidden = !state.invitationRequired;
     $("invitation").required = !!state.invitationRequired;
-    $("heading").textContent = state.phase === "approve" ? "Ready for ChatGPT." :
+    $("heading").textContent = state.phase === "done" ? "ChatGPT is connected." :
+      ["resume", "approve"].includes(state.phase) ? "Ready for ChatGPT." :
+      state.phase === "retry-chatgpt" ? "Keep is still connected." :
       state.phase === "connected" ? "Keep is connected." : "Your notes. Connected.";
-    $("message").textContent = state.phase === "start" ? "Sign in once. Find your notes in ChatGPT." :
+    $("message").textContent = state.phase === "done" ? "You can now ask ChatGPT about your notes." :
+      ["resume", "retry-chatgpt"].includes(state.phase) ? "Your Google account is saved." :
+      state.phase === "start" ? "Sign in once. Find your notes in ChatGPT." :
       state.phase === "google" ? "Sign in in the Google tab you just opened." :
       state.phase === "working" ? "Finishing your connection…" :
       state.phase === "approve" ? "Confirm this connection to " + state.callback + "." :
@@ -50,6 +55,8 @@ $("connect-form").addEventListener("submit", async event => {
   $("invitation").value = "";
 });
 for (const name of ["finish", "allow", "cancel", "restart"]) $(name).addEventListener("click", () => act($(name), name));
+$("resume-button").addEventListener("click", () => act($("resume-button"), "resume"));
+$("return-chatgpt").addEventListener("click", () => act($("return-chatgpt"), "retry-chatgpt"));
 $("retry").addEventListener("click", refresh);
 $("copy").addEventListener("click", async () => {
   try { await navigator.clipboard.writeText(mcpUrl); $("copy").textContent = "Copied ✓"; }

@@ -25,18 +25,18 @@
           <li><h2>Connect Google Keep</h2><p>Open Keep Context. Enter your Google email and invitation code if requested. Check the service hostname, read the connection notice, then click <strong>Connect Google Keep</strong> and allow the one-time permission.</p></li>
           <li><h2>Complete Google's sign-in</h2><p>Use the Google tab that opens. The extension handles the connection token. If Google stays loading after “I agree,” reopen Keep Context and click <strong>Finish connection</strong>. Wait for <strong>Keep is connected</strong>.</p></li>
           <li><h2>Add Keep Context in ChatGPT</h2><p>Click <strong>Connect ChatGPT</strong>. For this preview, choose Plugins → Add → Create custom MCP server. Name it Keep Context and paste the URL copied from the extension. Keep OAuth and dynamic client registration selected, then create/install it and choose Connect.</p></li>
-          <li><h2>Approve and ask</h2><p>On the final connection page, open the extension. Check the Google account and ChatGPT return address, then click <strong>Allow ChatGPT</strong>. In a new chat, select Keep Context with <code>@</code> and try “Search my notes for weekend trip.”</p></li>
+          <li><h2>Approve and ask</h2><p>On the final connection page, check the Google account and ChatGPT return address, then click <strong>Allow ChatGPT</strong> directly on that page. In a new chat, select Keep Context with <code>@</code> and try “Search my notes for weekend trip.”</p></li>
         </ol>
         <section aria-labelledby="help-title">
           <h2 id="help-title">If something gets stuck</h2>
           <h3>The popup closed</h3><p>Reopen it. A submitted connection keeps its progress.</p>
           <h3>Your browser restarted</h3><p>Reopen Keep Context. A verified account reconnects with its saved browser key. If Google sign-in had not finished, start that sign-in again.</p>
           <h3>Google sign-in expired or failed</h3><p>Choose Start over, or use Connect Google Keep again when offered. Complete a fresh Google sign-in. You never need to find or copy a cookie yourself.</p>
-          <h3>The ChatGPT link expired</h3><p>Return to ChatGPT and choose Connect again. If Keep is already connected in the extension, keep that Google connection.</p>
+          <h3>The ChatGPT request ended</h3><p>Click <strong>Return to ChatGPT</strong>, then choose Connect again. Google Keep stays connected; you do not repeat Google sign-in. If your approval was saved, choose <strong>Finish ChatGPT connection</strong> instead.</p>
           <h3>You added a new note</h3><p>Ask again after a minute. The next read refreshes the notes from Keep.</p>
           <h3>You want to disconnect</h3><p>Use <strong>Disconnect Keep</strong> in the extension to delete the hosted account and revoke ChatGPT's access. Removing the extension by itself does not delete that account. Google device/session access can be revoked separately in your Google account.</p>
         </section>
-        <p class="guide-notice">Fresh browser sign-in and extension-backed ChatGPT linking still need manual preview verification. Consumer Google Keep access is unofficial and some accounts may be rejected. <a href="https://github.com/spidey889/keep-context/blob/main/docs/VERIFICATION.md">See what has been tested.</a></p>
+        <p class="guide-notice">Fresh browser sign-in has been manually verified for the preview. Inline ChatGPT approval still needs its browser check. Consumer Google Keep access is unofficial and some accounts may be rejected. <a href="https://github.com/spidey889/keep-context/blob/main/docs/VERIFICATION.md">See what has been tested.</a></p>
         <p><a href="https://github.com/spidey889/keep-context/blob/main/docs/CONSUMER.md">Host a pilot or build an extension for your service →</a></p>
       </main>
       <footer><a class="brand" href="./">Keep Context</a><a href="./privacy.html">Privacy</a><a href="https://github.com/spidey889/keep-context/issues">Project support</a></footer>

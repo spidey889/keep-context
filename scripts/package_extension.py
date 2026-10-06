@@ -12,6 +12,7 @@ FILES = (
     "config.js",
     "bridge.js",
     "worker.js",
+    "consent.js",
     "popup.html",
     "popup.css",
     "popup.js",
@@ -27,6 +28,7 @@ def package(server: str, output: Path) -> None:
     source = Path(__file__).resolve().parents[1] / "extension"
     manifest = json.loads((source / "manifest.json").read_text(encoding="utf-8"))
     manifest["host_permissions"] = [base + "/*"]
+    manifest["content_scripts"][0]["matches"] = [base + "/connect*"]
     output.parent.mkdir(parents=True, exist_ok=True)
     # Exclusive create: do not silently overwrite an artifact being tested/distributed.
     with ZipFile(output, "x", compression=ZIP_DEFLATED) as archive:

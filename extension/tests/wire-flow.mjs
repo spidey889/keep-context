@@ -47,7 +47,19 @@ const response = await fetch(server + "/authorize?" + query, {redirect: "manual"
 assert.equal(response.status, 302);
 currentTab = {id: 3, url: response.headers.get("location")};
 assert.equal((await bridge.status()).phase, "approve");
-await bridge.decide("allow");
+const nativeFetch = bridge.fetch;
+let loseReply = true;
+bridge.fetch = async (...args) => {
+  const result = await nativeFetch(...args);
+  if (String(args[0]).endsWith("/api/approve") && loseReply) {
+    loseReply = false;
+    throw new Error("Simulated lost response after the real server accepted approval");
+  }
+  return result;
+};
+await assert.rejects(() => bridge.decide("allow"), /reach Keep Context/);
+assert.equal((await bridge.status()).phase, "resume");
+await bridge.decideFlow(currentTab, "allow");
 const redirect = new URL(currentTab.url);
 assert.equal(redirect.searchParams.get("state"), "fake-state");
 const tokens = await request("/token", {method: "POST", body: new URLSearchParams({

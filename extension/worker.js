@@ -1,4 +1,4 @@
-import {Bridge} from "./bridge.js";
+import {Bridge, connectionTicket} from "./bridge.js";
 import {SERVER} from "./config.js";
 
 const bridge = new Bridge(chrome, fetch, SERVER);
@@ -30,11 +30,24 @@ chrome.alarms.onAlarm.addListener(alarm => {
   }
 });
 chrome.runtime.onMessage.addListener((message, sender, reply) => {
-  if (sender.id !== chrome.runtime.id || sender.url !== chrome.runtime.getURL("popup.html")) return false;
-  const calls = {
+  if (sender.id !== chrome.runtime.id) return false;
+  const popup = sender.url === chrome.runtime.getURL("popup.html");
+  const page = sender.frameId === 0 && Number.isInteger(sender.tab?.id) &&
+    connectionTicket(sender.url, bridge.server);
+  if (!popup && !page) return false;
+  // Chrome supplies sender.tab/url. Never accept a page-supplied tab, ticket,
+  // account or redirect. Content scripts cannot read TRUSTED_CONTEXTS storage.
+  const tab = page ? {id: sender.tab.id, url: sender.url} : null;
+  const calls = popup ? {
     status: () => bridge.status(), begin: () => bridge.begin(message), finish: () => bridge.finish(),
     allow: () => bridge.decide("allow"), cancel: () => bridge.decide("cancel"),
     disconnect: () => bridge.disconnect(), restart: () => bridge.restart(),
+    "retry-chatgpt": () => bridge.decide("retry"), resume: () => bridge.decide("allow"),
+  } : {
+    "flow-status": () => bridge.flowStatus(tab), "flow-setup": () => bridge.flowSetup(tab),
+    "flow-allow": () => bridge.decideFlow(tab, "allow"),
+    "flow-cancel": () => bridge.decideFlow(tab, "cancel"),
+    "flow-retry": () => bridge.decideFlow(tab, "retry"),
   };
   if (!calls[message.action]) return false;
   void ready.then(calls[message.action]).then(reply).catch(error => reply({error: error.message}));

@@ -86,7 +86,12 @@ try:
         }
     )
     with urlopen("http://127.0.0.1:8800/authorize?" + params, timeout=5) as response:
-        assert b"One last click" in response.read()
+        assert response.geturl().startswith("http://127.0.0.1:8800/connect?ticket=")
+        assert response.headers["Cache-Control"] == "no-store"
+        consent = response.read()
+        # Verify the extension's consent contract rather than changeable page copy.
+        for control in ("flow-fallback", "flow-panel", "flow-primary", "flow-cancel"):
+            assert f'id="{control}"'.encode() in consent
     print("Container health, private MCP and encrypted volume persistence passed.")
 finally:
     subprocess.run(["docker", "stop", "keep-context-ci"], capture_output=True)

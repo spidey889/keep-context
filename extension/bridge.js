@@ -157,10 +157,45 @@ export class Bridge {
   async activeFlow() {
     const [tab] = await this.chrome.tabs.query({active: true, currentWindow: true});
     const ticket = connectionTicket(tab?.url, this.server);
-    return ticket ? {tab, ticket} : null;
+    if (ticket) return {tab, ticket};
+    const {chatgptFlow} = await this.chrome.storage.session.get("chatgptFlow");
+    if (!chatgptFlow) return null;
+    const saved = await this.chrome.tabs.get(chatgptFlow.tabId).catch(() => null);
+    if (connectionTicket(saved?.url, this.server) === chatgptFlow.ticket) {
+      return {tab: saved, ticket: chatgptFlow.ticket};
+    }
+    await this.chrome.storage.session.remove("chatgptFlow");
+    return null;
   }
 
-  async status() {
+  async readFlow(flow, email, mcpUrl) {
+    const details = await this.request("/api/pending", {ticket: flow.ticket}, true);
+    const base = {email, mcpUrl};
+    if (details.status === "completed") return {...base, phase: "done"};
+    if (details.status === "approved") return {...base, phase: "resume"};
+    if (["expired", "unavailable"].includes(details.status)) {
+      return {...base, phase: "retry-chatgpt",
+        message: "Google Keep is still connected. Return to ChatGPT and click Connect again."};
+    }
+    return {...base, phase: "approve", client: details.client,
+      callback: new URL(details.callback).host};
+  }
+
+  async flowStatus(tab) {
+    const ticket = connectionTicket(tab?.url, this.server);
+    if (!ticket) throw new Error("Open the connection page from ChatGPT.");
+    return this.status({tab, ticket});
+  }
+
+  async flowSetup(tab) {
+    const ticket = connectionTicket(tab?.url, this.server);
+    if (!ticket) throw new Error("Open the connection page from ChatGPT.");
+    await this.chrome.storage.session.set({chatgptFlow: {tabId: tab.id, ticket}});
+    await this.chrome.tabs.create({url: this.chrome.runtime.getURL("popup.html")});
+    return {phase: "start"};
+  }
+
+  async status(providedFlow = null) {
     let {login} = await this.chrome.storage.session.get("login");
     const expired = login && !login.submitted && this.now() - login.started >= 10 * 60 * 1000;
     // Release expired cookie privileges even if the service is currently offline.
@@ -179,12 +214,8 @@ export class Bridge {
       await this.chrome.permissions.remove(GOOGLE_ACCESS);
       await this.chrome.alarms.clear("connection-progress");
       await this.chrome.alarms.clear("connection-expiry");
-      const flow = await this.activeFlow();
-      if (flow) {
-        const details = await this.request("/api/pending", {ticket: flow.ticket}, true);
-        return {phase: "approve", email: details.email, client: details.client,
-          callback: new URL(details.callback).host};
-      }
+      const flow = providedFlow || await this.activeFlow();
+      if (flow) return this.readFlow(flow, state.email, config.mcp_url);
       return {phase: "connected", email: state.email, mcpUrl: config.mcp_url};
     }
     if (state.status === "connecting") {
@@ -232,13 +263,24 @@ export class Bridge {
   }
 
   async decide(action) {
-    if (!["allow", "cancel"].includes(action)) throw new Error("Choose Allow or Cancel.");
     const flow = await this.activeFlow();
     if (!flow) throw new Error("Open the fresh connection tab from ChatGPT first.");
-    const response = await this.request("/api/approve", {ticket: flow.ticket, action}, true);
-    if (!allowedCallback(response.redirect_url)) throw new Error("The return address was rejected.");
-    await this.chrome.tabs.update(flow.tab.id, {url: response.redirect_url});
-    return {phase: "connected"};
+    return this.decideFlow(flow.tab, action);
+  }
+
+  async decideFlow(tab, action) {
+    if (!["allow", "cancel", "retry"].includes(action)) throw new Error("Choose Allow, Cancel or Retry.");
+    const ticket = connectionTicket(tab?.url, this.server);
+    if (!ticket) throw new Error("Open the connection page from ChatGPT first.");
+    const response = await this.request("/api/approve", {ticket, action}, true);
+    const target = response.status === "completed" ? "https://chatgpt.com/plugins" : response.redirect_url;
+    if (!allowedCallback(target) && !(target === "https://chatgpt.com/plugins" &&
+        (action === "retry" || response.status === "completed"))) {
+      throw new Error("The return address was rejected.");
+    }
+    await this.chrome.tabs.update(tab.id, {url: target, active: true});
+    await this.chrome.storage.session.remove("chatgptFlow");
+    return {phase: response.status === "completed" ? "done" : "connected"};
   }
 
   async disconnect() {

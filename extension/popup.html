@@ -28,10 +28,12 @@
       <section id="connected" hidden>
         <p class="account" id="account"></p>
         <a class="button" href="https://chatgpt.com/plugins" target="_blank" rel="noreferrer">Connect ChatGPT <span aria-hidden="true">↗</span></a>
-        <details><summary>First-time ChatGPT setup</summary><ol><li>Choose Add → Create custom MCP server.</li><li>Name it Keep Context, paste the connection URL, and keep OAuth selected.</li><li>Create the plugin and choose Connect. On the final screen, open this extension and click Allow ChatGPT.</li></ol><button id="copy" class="secondary">Copy connection URL</button></details>
+        <details><summary>First-time ChatGPT setup</summary><ol><li>Choose Add → Create custom MCP server.</li><li>Name it Keep Context, paste the connection URL, and keep OAuth selected.</li><li>Create the plugin and choose Connect. Check your account on the final page and click Allow ChatGPT there.</li></ol><button id="copy" class="secondary">Copy connection URL</button></details>
         <button id="disconnect" class="link-button">Disconnect Keep</button>
       </section>
       <section id="approve" hidden><p class="account" id="approve-account"></p><p>Allow ChatGPT to search and read this account’s notes, including archived notes? It cannot edit or delete them.</p><button id="allow">Allow ChatGPT</button><button id="cancel" class="secondary">Cancel</button></section>
+      <section id="resume" hidden><p>Your approval was saved. Finish returning to ChatGPT.</p><button id="resume-button">Finish ChatGPT connection</button></section>
+      <section id="retry-chatgpt" hidden><p>Google Keep is still connected. This ChatGPT request ended; return and click Connect again. No Google sign-in needed.</p><button id="return-chatgpt">Return to ChatGPT</button></section>
       <button id="retry" class="secondary" hidden>Try again</button>
     </main>
     <footer>Read access only. <a href="https://spidey889.github.io/keep-context/connect.html" target="_blank" rel="noreferrer">Setup help</a> · <a href="https://spidey889.github.io/keep-context/privacy.html" target="_blank" rel="noreferrer">Privacy</a></footer>

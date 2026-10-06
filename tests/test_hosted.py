@@ -132,12 +132,9 @@ def test_accounts_are_isolated_through_actual_mcp_routes(pilot):
             ]["total"]
             == 0
         )
-    assert (
-        http.post(
-            "/api/approve", headers=owner_headers(KEY_A), json={"ticket": ticket, "action": "allow"}
-        ).status_code
-        == 400
-    )
+    assert http.post(
+        "/api/approve", headers=owner_headers(KEY_A), json={"ticket": ticket, "action": "allow"}
+    ).json() == {"status": "completed"}
     assert service.store.disk.path.read_bytes().find(b"fake-google-master") == -1
 
 
@@ -245,7 +242,9 @@ def test_expired_flow_cancel_and_recovered_response(pilot):
     location = begin(http, info).headers["location"]
     ticket = parse_qs(urlparse(location).query)["ticket"][0]
     service.oauth.pending[ticket].expires = time.time() - 1
-    assert http.get(location, follow_redirects=False).headers["location"].find("access_denied") > 0
+    expired_page = http.get(location, follow_redirects=False)
+    assert expired_page.status_code == 200 and 'id="flow-panel"' in expired_page.text
+    assert http.get("/api/account", headers=owner_headers(KEY_A)).status_code == 200
     assert (
         http.post(
             "/api/approve", headers=owner_headers(KEY_A), json={"ticket": ticket, "action": "allow"}
@@ -257,6 +256,95 @@ def test_expired_flow_cancel_and_recovered_response(pilot):
         "/api/approve", headers=owner_headers(KEY_A), json={"ticket": ticket, "action": "cancel"}
     )
     assert "error=access_denied" in r.json()["redirect_url"] and not service.oauth.codes
+
+
+def test_hosted_setup_has_time_and_expiry_preserves_google_connection(pilot):
+    http, service, _ = pilot
+    connect(http, KEY_A, "alice@example.test")
+    location = begin(http, register(http).json()).headers["location"]
+    ticket = parse_qs(urlparse(location).query)["ticket"][0]
+    assert service.oauth.pending[ticket].expires > time.time() + 25 * 60
+    service.oauth.pending[ticket].expires = time.time() - 1
+    result = http.post("/api/pending", headers=owner_headers(KEY_A), json={"ticket": ticket})
+    assert result.status_code == 200 and result.json()["status"] == "expired"
+    assert "access_denied" in result.json()["retry_url"]
+    assert http.get("/api/account", headers=owner_headers(KEY_A)).status_code == 200
+    assert not service.oauth.codes
+
+
+def test_lost_approval_response_can_finish_without_a_second_grant(pilot):
+    http, service, _ = pilot
+    connect(http, KEY_A, "alice@example.test")
+    connect(http, KEY_B, "bob@example.test")
+    info = register(http).json()
+    location = begin(http, info).headers["location"]
+    ticket = parse_qs(urlparse(location).query)["ticket"][0]
+    payload = {"ticket": ticket, "action": "allow"}
+    first = http.post("/api/approve", headers=owner_headers(KEY_A), json=payload).json()
+    status = http.post("/api/pending", headers=owner_headers(KEY_A), json={"ticket": ticket})
+    assert status.status_code == 200 and status.json()["status"] == "approved"
+    assert "redirect_url" not in status.json()  # Polling exposes no authorization code.
+    second = http.post("/api/approve", headers=owner_headers(KEY_A), json=payload)
+    assert second.status_code == 200 and second.json() == first
+    assert len(service.oauth.codes) == 1
+    assert http.post("/api/approve", headers=owner_headers(KEY_B), json=payload).status_code == 400
+    code = parse_qs(urlparse(first["redirect_url"]).query)["code"][0]
+    assert exchange(http, info, code).status_code == 200
+    status = http.post("/api/pending", headers=owner_headers(KEY_A), json={"ticket": ticket})
+    assert status.json()["status"] == "completed"
+    assert exchange(http, info, code).status_code == 400
+
+
+def test_missing_chatgpt_link_is_recoverable_without_google_setup(pilot):
+    http, _, _ = pilot
+    connect(http, KEY_A, "alice@example.test")
+    result = http.post("/api/pending", headers=owner_headers(KEY_A), json={"ticket": "x" * 43})
+    assert result.status_code == 200 and result.json()["status"] == "unavailable"
+    assert http.get("/api/account", headers=owner_headers(KEY_A)).status_code == 200
+
+
+def test_approval_code_expiry_and_disconnect_do_not_reissue_access(pilot):
+    http, service, _ = pilot
+    connect(http, KEY_A, "alice@example.test")
+    info = register(http).json()
+    location = begin(http, info).headers["location"]
+    ticket = parse_qs(urlparse(location).query)["ticket"][0]
+    payload = {"ticket": ticket, "action": "allow"}
+    response = http.post("/api/approve", headers=owner_headers(KEY_A), json=payload)
+    code = parse_qs(urlparse(response.json()["redirect_url"]).query)["code"][0]
+    service.oauth.codes[code].expires_at = time.time() - 1
+    state = http.post("/api/pending", headers=owner_headers(KEY_A), json={"ticket": ticket}).json()
+    assert state["status"] == "expired" and "redirect_url" not in state
+    assert http.post("/api/approve", headers=owner_headers(KEY_A), json=payload).status_code == 400
+    assert not service.oauth.codes
+    response = http.post(
+        "/api/approve", headers=owner_headers(KEY_A), json={"ticket": ticket, "action": "retry"}
+    )
+    assert "access_denied" in response.json()["redirect_url"]
+    assert http.get("/api/account", headers=owner_headers(KEY_A)).status_code == 200
+    assert http.post("/api/disconnect", headers=owner_headers(KEY_A), json={}).status_code == 200
+    assert not service.oauth.decisions
+
+
+def test_expired_flow_cannot_be_approved_and_returns_original_callback_state(pilot):
+    http, service, _ = pilot
+    connect(http, KEY_A, "alice@example.test")
+    info = register(http).json()
+    location = begin(http, info).headers["location"]
+    ticket = parse_qs(urlparse(location).query)["ticket"][0]
+    service.oauth.pending[ticket].expires = time.time() - 1
+    assert (
+        http.post(
+            "/api/approve", headers=owner_headers(KEY_A), json={"ticket": ticket, "action": "allow"}
+        ).status_code
+        == 400
+    )
+    response = http.post(
+        "/api/approve", headers=owner_headers(KEY_A), json={"ticket": ticket, "action": "retry"}
+    )
+    query = parse_qs(urlparse(response.json()["redirect_url"]).query)
+    assert query["state"] == ["a-client-state"] and query["error"] == ["access_denied"]
+    assert not service.oauth.codes
 
 
 def test_store_capacity_and_device_key_never_persist_in_plaintext(tmp_path):

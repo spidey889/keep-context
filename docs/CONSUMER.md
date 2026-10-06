@@ -10,9 +10,9 @@ This is a developer preview, **not yet listed in Chrome's or ChatGPT's directory
 2. Open Keep Context. Enter your Google email, review the service hostname and credential notice, and choose **Connect Google Keep**. Enter an invitation code if your host requires one. Approve the one-time permission.
 3. Complete Google's sign-in in the new tab. The extension handles the temporary token for this connection. If it does not finish automatically, open the extension and click **Finish connection**. A loading page after “I agree” can be normal; it is not proof of failure. You never copy a token or paste one into ChatGPT.
 4. After **Keep is connected**, click **Connect ChatGPT**. Until directory publication, add a custom MCP server once: copy its URL with the extension, name it Keep Context in ChatGPT's form, and keep OAuth/DCR selected. Create/install the plugin and choose Connect.
-5. On the final connection page, open the extension, check the Google account and callback hostname, and click **Allow ChatGPT**. No second password. Then ask about your notes.
+5. On the final connection page, check the Google account and callback hostname, then click **Allow ChatGPT** directly on the page. No second password or toolbar handoff. The extension popup provides the same approval as a fallback. Then ask about your notes.
 
-Closing the popup does not lose a submitted connection. Reopen it to see progress. A failed Google sign-in needs a fresh sign-in; an expired ChatGPT link needs a fresh Connect in ChatGPT, not another Google setup. Lost HTTP responses recover with the previously saved browser key.
+Closing the popup does not lose a submitted connection. Reopen it to see progress. A failed Google sign-in needs a fresh sign-in. ChatGPT setup has a 30-minute approval window; an ended request offers **Return to ChatGPT**, then a fresh Connect without repeating Google setup. If the approval response was lost, choose **Finish ChatGPT connection**. The same live code is delivered again without creating another grant.
 
 For an abandoned Google tab, choose **Start over**. An expired ten-minute window releases Google permission and returns to setup, including when the service is offline. If the service restarts before verifying an account, the popup offers fresh sign-in rather than waiting indefinitely. Already verified accounts recover from encrypted state.
 
@@ -23,8 +23,8 @@ If the browser restarts or the extension updates, temporary Google sign-in start
 ## Privacy
 
 - The explicitly approved EmbeddedSetup token goes directly over HTTPS to the single host baked into the extension. Google master tokens have broad account access. The host exchanges/verifies credentials and stores them encrypted using an operator-controlled key. This is encryption at rest, not end-to-end encryption: the running host can decrypt credentials. Only use a host you trust.
-- The browser stores a random management key in extension-only local storage, never Chrome Sync. It does not store Google cookies/master tokens. Content scripts and outside web pages cannot message the worker. Optional Google permission is removed after submission or failure.
-- Only the explicitly started ten-minute sign-in handles `oauth_token` for `accounts.google.com`. No page injection, note scraping, browsing history or Google password collection. Browser permission covers more than one cookie name; the implementation restricts its reads to that name.
+- The browser stores a random management key in extension-only local storage, never Chrome Sync. It does not store Google cookies/master tokens. Outside web pages cannot message the worker. One isolated consent script can send only allowlisted actions from the configured service's exact top-level connection page; it cannot access credential storage. Optional Google permission is removed after submission or failure.
+- Only the explicitly started ten-minute sign-in handles `oauth_token` for `accounts.google.com`. No Google/Keep page injection, note scraping, browsing history or Google password collection. Browser permission covers more than one cookie name; the implementation restricts its reads to that name.
 - Notes stay in Keep and the reader's memory; no notes database is created. Notes returned to ChatGPT are shared with ChatGPT. A hosted service can read new notes while the user's computer is off; its host must stay online. Development tunnels depend on the operator's computer and are temporary.
 - Server deletion cannot immediately delete encrypted host backups. Operators must declare backup retention before accepting ordinary users.
 
@@ -41,7 +41,7 @@ The default invited pilot supports 50 accounts, 20 cached readers, one Google en
    uv run python scripts/package_extension.py --server https://keep.example.com --out dist/keep-context-extension.zip
    ```
 
-   Only seven runtime files and four PNG icons enter the archive. No credentials, tests or development configuration. Existing archives are not silently replaced. The included **public** manifest key stabilizes unpacked preview ID `fmpbecffbmodgopadagphiaopjfnoppo`; it is not a signing secret. Confirm the assigned ID before Chrome store publication and set the non-secret `KEEP_EXTENSION_ID` on the host if it differs. Invalid IDs fail closed.
+   Only eight runtime files and four PNG icons enter the archive. No credentials, tests or development configuration. Existing archives are not silently replaced. The included **public** manifest key stabilizes unpacked preview ID `fmpbecffbmodgopadagphiaopjfnoppo`; it is not a signing secret. Confirm the assigned ID before Chrome store publication and set the non-secret `KEEP_EXTENSION_ID` on the host if it differs. Invalid IDs fail closed.
 5. Distribute the archive and invitation through your usual secure channel. No Google Cloud project is needed for this flow.
 
 A companion private-test ChatGPT plugin ZIP can prefill the MCP connection instead of asking users to type its URL. See [release packaging and remaining publication steps](RELEASE.md). Its actual ChatGPT upload UI remains unverified; the custom MCP form is the tested fallback.

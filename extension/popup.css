@@ -13,3 +13,4 @@ details{margin-top:18px}summary{cursor:pointer;color:#3c542e}ol{padding-left:22p
 footer{font-size:11px;border-top:1px solid #deded5;margin-top:22px;padding-top:14px}a{color:#3c542e}
 #error{background:#f8e8db;color:#713816;padding:12px;border-radius:9px;overflow-wrap:anywhere}
 :focus-visible{outline:3px solid #967524;outline-offset:3px}[hidden]{display:none!important}
+@media(min-width:540px){body{margin:8vh auto;width:420px}}

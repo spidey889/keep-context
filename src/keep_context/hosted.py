@@ -14,6 +14,7 @@ import sys
 import time
 from collections import OrderedDict, deque
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import anyio
 import uvicorn
@@ -55,9 +56,26 @@ class AccountBackends:
 class HostedOAuth(OwnerOAuth):
     def __init__(self, base: str, store: HostedStore, redirect_uris=()):
         self.store = store
+        self.decisions = {}
         # The inherited password form is never reachable in this mode. Keep the
         # existing provider's tested DCR/PKCE/token lifecycle, with SDK subjects.
         super().__init__(base, secrets.token_urlsafe(32), redirect_uris, state=store)
+
+    async def authorize(self, client, params):
+        location = await super().authorize(client, params)
+        ticket = parse_qs(urlparse(location).query)["ticket"][0]
+        # Google setup and browser permission prompts can outlast the local
+        # owner's five-minute password flow. This remains a bounded consent window.
+        self.pending[ticket].expires = time.time() + 30 * 60
+        return location
+
+    def _prune(self):
+        super()._prune()
+        self.decisions = {
+            ticket: value
+            for ticket, value in self.decisions.items()
+            if value["expires"] > time.time() and value["identity"] in self.store.data["accounts"]
+        }
 
     def reload(self):
         stored = self.store.load()
@@ -81,7 +99,12 @@ class HostedOAuth(OwnerOAuth):
     async def exchange_authorization_code(self, client, authorization_code):
         if authorization_code.subject not in self.store.data["accounts"]:
             raise TokenError("invalid_grant", "Keep account disconnected. Connect again.")
-        return await super().exchange_authorization_code(client, authorization_code)
+        result = await super().exchange_authorization_code(client, authorization_code)
+        for value in self.decisions.values():
+            if value["code"] == authorization_code.code:
+                value["completed"] = True
+                value["code"] = None
+        return result
 
     async def exchange_refresh_token(self, client, refresh_token, scopes):
         if refresh_token.subject not in self.store.data["accounts"]:
@@ -95,13 +118,84 @@ class HostedOAuth(OwnerOAuth):
             raise SetupError("This connection link expired. Start Connect again in ChatGPT.")
         return pending
 
-    def decide(self, ticket: str, identity: str, action: str) -> str:
+    def flow(self, ticket: str, identity: str):
+        self._prune()
+        previous = self.decisions.get(ticket)
+        if previous:
+            if previous["identity"] != identity:
+                return {"status": "unavailable"}
+            if previous["completed"]:
+                return {"status": "completed"}
+            if previous["action"] == "allow" and previous["code"] in self.codes:
+                return {"status": "approved"}
+            pending = previous["pending"]
+        else:
+            pending = self.pending.get(ticket)
+            if not pending:
+                return {"status": "unavailable"}
+            if pending.expires > time.time():
+                return {
+                    "status": "pending",
+                    "client": self.clients[pending.client_id].client_name or "ChatGPT",
+                    "callback": str(pending.params.redirect_uri),
+                    "scope": SCOPE,
+                }
+        return {
+            "status": "expired",
+            "retry_url": construct_redirect_uri(
+                str(pending.params.redirect_uri),
+                error="access_denied",
+                error_description=(
+                    "ChatGPT connection ended. Your Google Keep account is still connected."
+                ),
+                state=pending.params.state,
+            ),
+        }
+
+    def decide(self, ticket: str, identity: str, action: str) -> dict:
+        state = self.flow(ticket, identity)
+        previous = self.decisions.get(ticket)
+        if previous and previous["identity"] != identity:
+            raise SetupError("This ChatGPT connection belongs to another account.")
+        if state["status"] == "completed":
+            return {"status": "completed"}
+        if action == "retry":
+            pending = previous["pending"] if previous else self.pending.get(ticket)
+            self.pending.pop(ticket, None)
+            if previous:
+                self.codes.pop(previous["code"], None)
+                self.decisions.pop(ticket, None)
+            return {
+                "redirect_url": construct_redirect_uri(
+                    str(pending.params.redirect_uri),
+                    error="access_denied",
+                    state=pending.params.state,
+                )
+                if pending
+                else "https://chatgpt.com/plugins"
+            }
+        if previous and previous["action"] == action:
+            # Re-deliver only the same owner's still-live code after a lost HTTP
+            # response. No new grant, no code in status polling, no PKCE bypass.
+            if state["status"] == "approved":
+                return {
+                    "redirect_url": construct_redirect_uri(
+                        str(previous["pending"].params.redirect_uri),
+                        code=previous["code"],
+                        state=previous["pending"].params.state,
+                    )
+                }
+            raise SetupError("ChatGPT connection ended. Your Keep account is still connected.")
         pending = self.details(ticket)
         self.pending.pop(ticket)
         if action == "cancel":
-            return construct_redirect_uri(
-                str(pending.params.redirect_uri), error="access_denied", state=pending.params.state
-            )
+            return {
+                "redirect_url": construct_redirect_uri(
+                    str(pending.params.redirect_uri),
+                    error="access_denied",
+                    state=pending.params.state,
+                )
+            }
         code = secrets.token_urlsafe(32)
         self.codes[code] = AuthorizationCode(
             code=code,
@@ -114,37 +208,46 @@ class HostedOAuth(OwnerOAuth):
             redirect_uri_provided_explicitly=pending.params.redirect_uri_provided_explicitly,
             resource=self.resource,
         )
-        return construct_redirect_uri(
-            str(pending.params.redirect_uri), code=code, state=pending.params.state
-        )
+        if len(self.decisions) >= 128:
+            self.decisions.pop(next(iter(self.decisions)))
+        self.decisions[ticket] = {
+            "identity": identity,
+            "action": action,
+            "pending": pending,
+            "code": code,
+            "completed": False,
+            "expires": time.time() + 1800,
+        }
+        return {
+            "redirect_url": construct_redirect_uri(
+                str(pending.params.redirect_uri), code=code, state=pending.params.state
+            )
+        }
 
     async def consent(self, request):
         self._prune()
         ticket = request.query_params.get("ticket", "")
         pending = self.pending.get(ticket)
-        if pending and pending.expires <= time.time():
-            return self._deny(ticket, pending, "Connection expired. Please connect again.")
-        if not pending:
-            return page(
-                "Start a fresh connection",
-                "This link is no longer available. Return to ChatGPT and choose Connect again.",
-                status=400,
-            )
         if request.method == "POST":
             form = await request.form()
-            if form.get("action") == "cancel" and secrets.compare_digest(
-                str(form.get("csrf", "")), pending.csrf
+            if (
+                pending
+                and form.get("action") == "cancel"
+                and secrets.compare_digest(str(form.get("csrf", "")), pending.csrf)
             ):
                 return self._deny(ticket, pending, "Connection cancelled.")
             return page("Use the extension", "Approve from the Keep Context extension.", status=403)
         return page(
-            "One last click",
-            "Open the Keep Context extension in your browser toolbar. "
-            "Check the Google account, then click Allow ChatGPT. No password needed.",
-            extra=f'<form method="post"><input type="hidden" name="csrf" '
-            f'value="{pending.csrf}"><button name="action" value="cancel">'
-            "Cancel and return to ChatGPT</button></form>",
-            headers=self._consent_headers(pending),
+            "Connect your notes to ChatGPT",
+            "Your saved Google connection stays connected if this ChatGPT link ends. "
+            "No password needed.",
+            extra='<p id="flow-fallback">Open the Keep Context extension from your toolbar, '
+            "or reload this page after updating the extension.</p>"
+            '<section id="flow-panel" hidden><p id="flow-message" role="status"></p>'
+            '<p id="flow-account"></p><p id="flow-error" role="alert" hidden></p>'
+            '<button id="flow-primary" type="button"></button> '
+            '<button id="flow-cancel" type="button" hidden>Cancel</button></section>',
+            headers=self._consent_headers(pending) if pending else HEADERS,
         )
 
 
@@ -255,19 +358,16 @@ class Pilot:
                     result = {"disconnected": True}
                 elif route in ("/api/pending", "/api/approve"):
                     ticket = str(payload.get("ticket", ""))
-                    pending = self.oauth.details(ticket)
                     if route == "/api/pending":
                         result = {
-                            "client": self.oauth.clients[pending.client_id].client_name,
-                            "callback": str(pending.params.redirect_uri),
-                            "scope": SCOPE,
+                            **self.oauth.flow(ticket, identity),
                             "email": self.store.credentials(identity).email,
                         }
                     else:
                         action = payload.get("action")
-                        if action not in ("allow", "cancel"):
-                            raise SetupError("Choose Allow or Cancel.")
-                        result = {"redirect_url": self.oauth.decide(ticket, identity, action)}
+                        if action not in ("allow", "cancel", "retry"):
+                            raise SetupError("Choose Allow, Cancel or Try ChatGPT again.")
+                        result = self.oauth.decide(ticket, identity, action)
                 else:
                     return JSONResponse({"error": "Not found."}, 404, headers=headers)
             return JSONResponse(result, headers=headers)
@@ -336,6 +436,11 @@ class Pilot:
             self.oauth.reload()
             # Invalidate unexchanged codes for any previous connection to this account.
             self.oauth.codes = {k: c for k, c in self.oauth.codes.items() if c.subject != identity}
+            self.oauth.decisions = {
+                k: value
+                for k, value in self.oauth.decisions.items()
+                if value["identity"] != identity
+            }
             self.backends.cache.pop(identity, None)
             self.jobs[job_key] = {
                 "status": "connected",
