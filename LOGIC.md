@@ -1,0 +1,39 @@
+# Current architecture and behavior
+
+Keep Context is a single-owner, read-only Google Keep MCP server. Python 3.11+, `gkeepapi==0.17.1`, `gpsoauth==2.0.0`, and official `mcp` SDK >=1.30,<2. `uv.lock` pins the tested dependency set.
+
+## Request path
+
+`ChatGPT → HTTPS proxy/tunnel → SDK OAuth authorization → /mcp → five read tools → serialized KeepBackend snapshot → gkeepapi → Google's private Keep sync API`.
+
+Stdio uses the same five tools but trusts the local MCP client process. No OpenAI API key or model calls are made by this project. There is one Google account for the whole process; it must not be shared as multi-user hosting.
+
+## Google access
+
+Local `connect` manually exchanges a hidden EmbeddedSetup `oauth_token` cookie through gpsoauth, asks for a separate owner connection password, verifies read sync, and stores credentials in a native OS vault. Existing master tokens can also be entered locally. Explicit environment secrets support headless deployments. Unknown/plaintext vault backends fail closed. Google master tokens never appear in MCP output.
+
+Backend sync is lazy and serialized by a thread lock. It initially downloads notes, then refreshes after 60 seconds. Notes exist only in RAM. Failure never returns the old cached snapshot. A failed sync discards the client so a later request can retry from a fresh connection. Upstream errors are replaced with safe actionable messages; upstream debug logging is disabled.
+
+Google read sync uses POST. `ReadOnlySession` rejects unexpected methods/routes and any nonempty nodes/userInfo mutation payload. The app creates no notes or labels and does not edit gkeepapi nodes. Sync requests have 10-second connect/30-second read deadlines; the sync loop has a two-minute deadline and Google 429 fails promptly. Auth refresh retries at most once. The original gpsoauth TLS adapter is subclassed only to add those network deadlines. Pinned-version API internals and real parsing are tested using mocked wire responses.
+
+Full text conversion distinguishes text notes from lists. Checklists preserve item IDs, order, checked flags and parent IDs without duplicating list text. Timestamps are UTC. Source URLs prefer the Google server ID; local node IDs are used for tool retrieval. Labels include configured unused names. Images/audio/drawings and reminders are outside the text MVP.
+
+## Tools
+
+- `search(query, limit=20, offset=0, include_archived=true, label=null)`: Unicode NFKC/casefold substring search across titles/body/checklist; all keywords must match. Title matches rank first, then updated time/id. Returns excerpts, metadata, counts and next offset.
+- `fetch(id)`: full text plus note metadata and checklist state. Trashed/missing notes return a tool error.
+- `list_recent_notes(limit=20, offset=0, include_archived=false, label=null)`: updated-time descending.
+- `list_labels()`: configured names and counts across non-trashed notes, including archived notes.
+- `find_tasks(limit=50, offset=0, include_archived=false, label=null)`: unchecked checklist/Markdown items are explicit; English TODO/need-to/remember-to/task-title wording is heuristic. Completed/checked lines are omitted. It does not infer deadlines or promise complete task recall.
+
+Every listing uses `next_offset`, limit 1–100 and nonnegative offset. Search/fetch arguments are bounded; empty/whitespace search fails. Exact label matching is case-insensitive. Trash is always excluded. Responses expose structured JSON and matching JSON text; source content is described as untrusted data in server instructions.
+
+## MCP HTTP security
+
+Stateless Streamable HTTP, JSON responses, loopback bind, 64 KiB request limit, explicit host/origin checks. SDK routes provide OAuth authorization metadata, protected resource metadata, DCR, PKCE S256, token exchange and revocation. All `/mcp` requests require valid `keep:read` tokens with resource `PUBLIC_ORIGIN/mcp`. Tool metadata declares read-only behavior and OAuth scope. `/health` is public and reveals only service status.
+
+Owner consent uses a separate 20+ character password, scrypt comparison, per-flow CSRF token, five-minute ticket expiry, no-store/no-referrer/CSP headers, escaped client names and five failed password attempts per minute. DCR callbacks are restricted to ChatGPT's documented HTTPS callback patterns or exact explicitly allowed URIs. Code exchange is client-bound, single-use and PKCE-checked, with one-minute expiry. Access tokens expire in one hour; refresh tokens rotate and expire in 30 days. Revocation invalidates both tokens in a pair.
+
+Completed OAuth clients/tokens persist atomically in `.keep-context/oauth.enc`, encrypted with Fernet using domain-separated SHA-256 derivation from the high-entropy Google master token. No note data or Google credentials are in that file. Changing the master token or public resource requires `--reset-access`. Consent tickets/codes are ephemeral. Run one process/worker for each state file.
+
+Optional `--tunnel` runs cloudflared over HTTP/2, suppresses raw log output, and waits for both a URL and a registered tunnel connection within a 45-second startup deadline. It cleans up its child process on shutdown. Temporary hostnames invalidate old OAuth access. Stable public URLs preserve sessions. Quick Tunnels are convenience hosting with no uptime guarantee, not a permanent deployment.
