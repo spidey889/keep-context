@@ -1,5 +1,10 @@
 # Changelog
 
+## ChatGPT connection confirmed — 2026-10-06
+
+- After the consent-policy fix, the owner successfully authorized Keep Context in Brave and used it in ChatGPT. Their screenshot shows 13 notes including archived notes, matching the real Google account check. Safe server diagnostics independently confirm consent redirect, token exchange and authenticated MCP calls.
+- Updated verification proof to distinguish the actual ChatGPT listing/count from all-five-tool verification by the official MCP client. No browser automation, account identifiers, note contents or credentials are included in the report.
+
 ## Consent callback security policy — 2026-10-06
 
 - A fresh manual connection reached consent within seconds, returned a 303, then repeated the consumed form and received 400. No ChatGPT token exchange followed. Source/header inspection found `form-action 'self'` excluded the cross-origin OAuth callback, a browser behavior the HTTP-only verifier does not enforce. This matches the observed stalled return; actual browser confirmation remains manual because the owner prohibits browser automation.

@@ -29,9 +29,15 @@ The live check printed only status and the total note count. No note contents, i
 
 The initial HTTPS probe failed before the tunnel was reachable. Startup was corrected to wait for a registered tunnel connection and use HTTP/2; the subsequent full public smoke passed.
 
-## Remaining manual verification
+## Manual ChatGPT verification — 2026-10-06
 
-Live Google read access and real HTTPS OAuth/MCP have now passed. The user's first attempts exposed cookie-expiry/copying friction and exit-on-short-password behavior; setup now provides safe diagnostics, retries passwords and resumes verified access from a separate native-vault checkpoint. **Actual installation and use inside the user's ChatGPT account remains unverified.** The official MCP client verifies the server transport, tools and real Google access, but cannot prove ChatGPT account/workspace feature availability or the final ChatGPT linking experience.
+The owner completed authorization in Brave and used Keep Context in a real ChatGPT conversation. The supplied screenshot shows ChatGPT reporting **13 notes including archived notes**, matching independent Google verification. Safe server diagnostics confirm the fresh consent redirect, successful token exchange and subsequent successful authenticated MCP requests. This confirms the actual ChatGPT connection and note listing/count; individual search, full-note and checklist answers in ChatGPT are not asserted from that screenshot. All five tools were independently verified against the real account using the official MCP client.
+
+The owner's manual browser retry also confirms that returning to ChatGPT works after correcting the consent security policy. No browser automation was used. Logs contain only fixed route names, method, time and status; this report contains no account identifiers, note contents or secrets.
+
+## Setup for another developer
+
+The first attempts exposed cookie-expiry/copying friction and exit-on-short-password behavior; setup now provides safe diagnostics, retries passwords and resumes verified access from a separate native-vault checkpoint. Account/workspace feature availability and Google consumer authentication remain specific to each user's environment.
 
 For another developer's first setup:
 
@@ -41,7 +47,7 @@ uv run keep-context doctor
 uv run keep-context serve --tunnel
 ```
 
-For the connected owner, only the ChatGPT step remains: add the running server's printed `/mcp` URL with OAuth/DCR and enter the separate connection password. Ask for a known note, read it, and inspect an unchecked item. Do not run `connect` again for an already verified account.
+The connected owner can now ask ChatGPT about notes. Keep the server and tunnel running; do not run `connect` again for an already verified account. A new installation uses the printed `/mcp` URL with OAuth/DCR and the separate connection password. Useful manual checks are searching for a known note, reading it, and inspecting an unchecked item.
 
 Limitations: unofficial Google API/authentication may break or reject an account; one Google owner per server; keyword search and English prose task heuristics; no image/audio/drawing transcription or reminder retrieval; no write tools. Quick tunnel URLs change on restart. Stable HTTPS deployment preserves OAuth state and is preferable for everyday use.
 
