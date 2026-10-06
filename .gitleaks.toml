@@ -1,0 +1,12 @@
+# Chrome's public manifest key stabilizes the preview ID. It cannot sign releases.
+# Allow only this exact public value on this field/path; retain all secret rules.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Reviewed public Chrome manifest key"
+condition = "AND"
+targetRules = ["generic-api-key"]
+paths = ['''^extension/manifest\.json$''']
+regexTarget = "line"
+regexes = ['''^\s*"key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmG7MFr/gPhsLkpoXaUj217VvOQ4xFOQGvZ0K428PFdh0PTvoZDkUBiHWn0cS3ZCTCDGmQy/NNMNe9D7P/r8G5m4jLJMBBcgVSxmJWeMaFEm\+PyDlbrfSLYX3aQvMRlfBzAvLUy1eB1xTKeKi6SovNTWoRg/FDSXmi7TqkG5BR4lWLLUmXa1TDl9mJBSLnIwWsu4m3p1csX\+pnwcITA9L\+Ste7PZYMG5p5rz0UAbd//BCMHmZnK2\+NIuTiSdgAIoWM6/tuDd6IhuRi0qQd6IgZour2edyuYlQ\+c9F\+Bx0zHLrzEPK2ur2izu\+tCkNEB3BP48WGyABB\+BAOULGvOCRgQIDAQAB",\s*$''']

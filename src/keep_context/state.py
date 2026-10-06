@@ -1,4 +1,4 @@
-"""Encrypted, atomic OAuth state; no note cache or Google credentials on disk."""
+"""Encrypted, atomic state used by local OAuth and the opt-in hosted registry."""
 
 import base64
 import hashlib
@@ -14,8 +14,9 @@ from .credentials import SetupError
 class EncryptedState:
     def __init__(self, path: Path, master_token: str):
         self.path = path
-        # Domain-separated derivation from an existing high-entropy vault secret avoids
-        # needing another OS-vault entry. Rotating the Google token invalidates old state.
+        # Local OAuth uses the high-entropy vault token. The hosted wrapper supplies
+        # its separate domain-prefixed operator key. Keep this derivation stable:
+        # changing it or the caller's secret invalidates the existing encrypted file.
         key = hashlib.sha256(b"keep-context-oauth-v1\0" + master_token.encode()).digest()
         self.cipher = Fernet(base64.urlsafe_b64encode(key))
 

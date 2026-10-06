@@ -82,6 +82,15 @@ footer { display: flex; justify-content: space-between; align-items: center; gap
 footer .brand { font-size: 14px; gap: 8px; }
 footer > a:last-child { text-decoration: none; }
 .colophon { font-size: 10px; text-align: center; padding-block: 28px; }
+.guide { max-width: 680px; margin: 65px auto 75px; }
+.guide h1 { font-size: clamp(40px, 7vw, 58px); margin-block: 22px; }
+.guide-lead { font-size: 19px; margin-bottom: 28px; }
+.guide h2 { font-size: 28px; letter-spacing: -.035em; margin-top: 38px; }
+.guide h3 { margin-top: 22px; }
+.guide p { margin-top: 12px; }
+.guide-notice { margin-block: 24px; padding: 20px; background: #edeee6; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); }
+.guide-steps { padding-left: 24px; }
+.guide-steps li { padding-left: 12px; }
 
 @media (max-width: 950px) {
   .page { width: calc(100% - 64px); }

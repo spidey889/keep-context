@@ -11,6 +11,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python }}
@@ -20,3 +23,11 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run pytest -q
       - run: uv build
+      - run: node --test extension/tests/bridge.test.js
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t keep-context-pilot .
+      - name: Verify packaged server starts and denies anonymous notes
+        run: python3 scripts/smoke_container.py

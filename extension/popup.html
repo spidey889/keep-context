@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Keep Context</title>
+    <link rel="stylesheet" href="popup.css">
+    <script type="module" src="popup.js"></script>
+  </head>
+  <body>
+    <header><span class="mark" aria-hidden="true">K</span><strong>Keep Context</strong><span class="preview">Preview</span></header>
+    <main>
+      <h1 id="heading">Your notes. Connected.</h1>
+      <p id="message" class="muted">Checking your connection…</p>
+      <p id="error" role="alert" hidden></p>
+      <section id="start" hidden>
+        <form id="connect-form">
+          <label for="email">Google email</label>
+          <input id="email" type="email" autocomplete="email" maxlength="254" required placeholder="you@gmail.com">
+          <div id="invitation-row" hidden><label for="invitation">Invitation code</label><input id="invitation" type="password" autocomplete="off"></div>
+          <p class="muted">Connection service: <span id="service-host"></span></p>
+          <label class="consent"><input id="consent" type="checkbox" required><span>I allow this service to connect to my Keep account. Google credentials will be stored encrypted on the host. The connection token has broad Google account access; the app only reads Keep.</span></label>
+          <button id="begin" type="submit">Connect Google Keep <span aria-hidden="true">→</span></button>
+        </form>
+      </section>
+      <section id="google" hidden><p>Complete Google’s sign-in. If it stays loading after “I agree,” that’s okay.</p><button id="finish">Finish connection</button><button id="restart" class="link-button">Start over</button></section>
+      <section id="working" hidden><p class="status-dot">Checking access to your notes…</p><p class="muted">You can close this popup. We’ll save your progress.</p></section>
+      <section id="connected" hidden>
+        <p class="account" id="account"></p>
+        <a class="button" href="https://chatgpt.com/plugins" target="_blank" rel="noreferrer">Connect ChatGPT <span aria-hidden="true">↗</span></a>
+        <details><summary>First-time ChatGPT setup</summary><ol><li>Choose Add → Create custom MCP server.</li><li>Name it Keep Context, paste the connection URL, and keep OAuth selected.</li><li>Create the plugin and choose Connect. On the final screen, open this extension and click Allow ChatGPT.</li></ol><button id="copy" class="secondary">Copy connection URL</button></details>
+        <button id="disconnect" class="link-button">Disconnect Keep</button>
+      </section>
+      <section id="approve" hidden><p class="account" id="approve-account"></p><p>Allow ChatGPT to search and read this account’s notes, including archived notes? It cannot edit or delete them.</p><button id="allow">Allow ChatGPT</button><button id="cancel" class="secondary">Cancel</button></section>
+      <button id="retry" class="secondary" hidden>Try again</button>
+    </main>
+    <footer>Read access only. <a href="https://spidey889.github.io/keep-context/connect.html" target="_blank" rel="noreferrer">Setup help</a> · <a href="https://spidey889.github.io/keep-context/privacy.html" target="_blank" rel="noreferrer">Privacy</a></footer>
+  </body>
+</html>

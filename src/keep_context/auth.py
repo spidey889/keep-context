@@ -291,7 +291,7 @@ class OwnerOAuth(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToke
         code = self.codes.get(authorization_code)
         return code if code and code.client_id == client.client_id else None
 
-    def _issue(self, client_id: str, scopes: list[str]) -> OAuthToken:
+    def _issue(self, client_id: str, scopes: list[str], subject: str | None = None) -> OAuthToken:
         self._prune()
         if len(self.refresh) >= 128:
             raise TokenError("invalid_grant", "Connection limit reached. Restart server.")
@@ -303,9 +303,15 @@ class OwnerOAuth(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToke
             scopes=scopes,
             expires_at=now + 3600,
             resource=self.resource,
+            subject=subject,
         )
         self.refresh[refresh] = RefreshToken(
-            token=refresh, client_id=client_id, scopes=scopes, expires_at=now + 30 * 86400
+            token=refresh,
+            client_id=client_id,
+            scopes=scopes,
+            expires_at=now + 30 * 86400,
+            resource=self.resource,
+            subject=subject,
         )
         self.pairs[access] = refresh
         self._save()
@@ -320,7 +326,7 @@ class OwnerOAuth(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToke
     async def exchange_authorization_code(self, client, authorization_code):
         if self.codes.pop(authorization_code.code, None) is None:
             raise TokenError("invalid_grant", "Authorization code was already used.")
-        return self._issue(client.client_id, authorization_code.scopes)
+        return self._issue(client.client_id, authorization_code.scopes, authorization_code.subject)
 
     async def load_refresh_token(self, client, refresh_token):
         self._prune()
@@ -331,7 +337,7 @@ class OwnerOAuth(OAuthAuthorizationServerProvider[AuthorizationCode, RefreshToke
         if self.refresh.get(refresh_token.token) is None:
             raise TokenError("invalid_grant", "Refresh token was already used.")
         await self.revoke_token(refresh_token)
-        return self._issue(client.client_id, scopes)
+        return self._issue(client.client_id, scopes, refresh_token.subject)
 
     async def load_access_token(self, token):
         self._prune()

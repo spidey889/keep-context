@@ -1,5 +1,7 @@
 # Connect a Google Keep account
 
+For the opt-in extension/hosted preview, follow the [simpler setup guide](CONSUMER.md). Its sign-in uses no manual cookie copying or separate connection password. The instructions below apply to local `keep-context connect`.
+
 ## One-time local setup
 
 Run `uv run keep-context connect` in an interactive terminal. Secrets are hidden; noninteractive input is rejected rather than echoed.

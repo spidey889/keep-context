@@ -1,0 +1,17 @@
+# Operator deployment only. This paid persistent service is never created automatically.
+services:
+  - type: web
+    name: keep-context-pilot
+    runtime: docker
+    plan: 0.5c-512mb
+    numInstances: 1
+    healthCheckPath: /health
+    disk:
+      name: encrypted-accounts
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: KEEP_HOSTED_KEY
+        sync: false
+      - key: KEEP_ENROLLMENT_CODE
+        sync: false

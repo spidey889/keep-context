@@ -19,6 +19,7 @@ dependencies = [
 
 [project.scripts]
 keep-context = "keep_context.cli:main"
+keep-context-hosted = "keep_context.hosted:main"
 
 [dependency-groups]
 dev = ["pytest>=8,<10", "pytest-cov>=6,<8", "ruff>=0.12,<1"]

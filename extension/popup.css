@@ -1,0 +1,15 @@
+:root{color-scheme:light;font:14px/1.5 system-ui;color:#252820;background:#f7f6f2}
+*{box-sizing:border-box}body{width:360px;margin:0;padding:22px}header{display:flex;align-items:center;gap:9px}
+.mark{display:grid;place-items:center;background:#e6ecdf;border-radius:9px;width:29px;height:29px;font:20px Georgia}
+.preview{margin-left:auto;font-size:11px;border:1px solid #deded5;border-radius:20px;padding:2px 7px}
+h1{font:30px/1.15 Georgia;margin:24px 0 10px}p{margin:12px 0}.muted,footer{color:#62645b}
+label{display:block;margin:16px 0 6px;font-weight:600}input:not([type=checkbox]){width:100%;padding:11px;border:1px solid #b6b9aa;border-radius:8px;font:inherit;background:white;color:inherit}
+.consent{display:flex;gap:9px;font-size:12px;font-weight:400;align-items:flex-start}.consent input{margin:4px 0;accent-color:#3c542e}
+button,.button{display:block;text-align:center;width:100%;font:600 14px system-ui;padding:13px;border:1px solid transparent;border-radius:9px;background:#3c542e;color:white;text-decoration:none;cursor:pointer;margin-top:14px}
+button:disabled{opacity:.65;cursor:wait}.secondary{background:white;color:#252820;border-color:#b6b9aa}
+.link-button{background:transparent;color:#62645b;font-weight:400;text-decoration:underline;padding:7px}
+.account{padding:12px;background:#e6ecdf;border-radius:9px;overflow-wrap:anywhere}.status-dot:before{content:'●';color:#3c542e;margin-right:8px}
+details{margin-top:18px}summary{cursor:pointer;color:#3c542e}ol{padding-left:22px}li{margin-top:8px}
+footer{font-size:11px;border-top:1px solid #deded5;margin-top:22px;padding-top:14px}a{color:#3c542e}
+#error{background:#f8e8db;color:#713816;padding:12px;border-radius:9px;overflow-wrap:anywhere}
+:focus-visible{outline:3px solid #967524;outline-offset:3px}[hidden]{display:none!important}

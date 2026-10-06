@@ -1,0 +1,9 @@
+# Only application source and its locked package metadata enter the image.
+**
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE
+!src
+!src/keep_context
+!src/keep_context/*.py

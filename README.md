@@ -6,11 +6,17 @@
 
 [Website](https://spidey889.github.io/keep-context/) · [Get started](#quick-start) · [Authentication guide](docs/AUTHENTICATION.md) · [Verification](docs/VERIFICATION.md)
 
-Search and read your Google Keep notes in ChatGPT. One account per server, five read-only tools, no database or paid AI API required.
+Search and read your Google Keep notes in ChatGPT. Five read-only tools, no notes database or paid AI API required. Local mode is one account per server.
 
 Keep Context reads from your connected Google Keep account and refreshes an in-memory snapshot as needed. New notes become available on the next request after the one-minute refresh interval. It never writes a notes database.
 
 Ask things like **“What did I write about my garden?”**, **“Search my notes for weekend trip”**, or **“What do I still need to do?”**
+
+## Simpler setup preview
+
+A new [browser extension and hosted pilot](docs/CONSUMER.md) moves setup toward **install → Google sign-in → approve ChatGPT**. Users do not copy cookies, install Python, run a terminal or choose a second password. Hosted mode isolates each account and stores credentials encrypted; it never loads the local owner's vault.
+
+This is a preview, not a store-listed release. The operator must deploy a stable service and provide an extension built for its origin. ChatGPT's custom-server form is the established fallback; a [private-test plugin ZIP](docs/RELEASE.md) also prepares the connection details for upload. That upload UI is not yet manually verified. See the [simple connection guide](https://spidey889.github.io/keep-context/connect.html), [privacy explanation](https://spidey889.github.io/keep-context/privacy.html) and [operator guide](docs/CONSUMER.md).
 
 ## Quick start
 
@@ -77,23 +83,26 @@ Google's [official Keep API](https://developers.google.com/workspace/keep/api/gu
 
 ## Privacy and limits
 
-- Google master tokens have broad account access. They remain in your OS credential vault, or explicit deployment secrets; the server never returns them through MCP.
-- No note cache is written to disk. OAuth clients/tokens are stored encrypted in ignored `.keep-context/oauth.enc`, with encryption derived from the Google master token. HTTP access logs and upstream debug logging are disabled.
+- Google master tokens have broad account access. Local mode uses your OS vault or explicit deployment secrets. Hosted preview credentials are encrypted with a separate operator-controlled key; the running host can decrypt them. The server never returns Google credentials through MCP.
+- No note cache is written to disk. Local OAuth state is encrypted in ignored `.keep-context/oauth.enc`; the hosted preview has a separate encrypted account/OAuth registry. HTTP access logs and upstream debug logging are disabled.
 - No tools can write notes. A network guard rejects node/label mutation payloads even if future code accidentally edits a gkeepapi object.
-- Notes read by ChatGPT are shared with ChatGPT. The server is for one trusted owner, not shared multi-user hosting.
+- Notes read by ChatGPT are shared with ChatGPT. Local `serve` supports one trusted owner. The hosted preview isolates accounts by authenticated token subject; only use a host you trust.
 - Access is unofficial and can break if Google changes its private API or blocks authentication. Checklist extraction is exact; English prose task detection is heuristic. Search is keyword-based, not semantic. Images, drawings, audio and reminders are not transcribed or fetched.
 
 ## Develop and verify
+
+Install Node.js 24+ as well as uv/Python for extension and protocol tests. End users of a hosted extension do not need either runtime.
 
 ```sh
 uv sync --locked
 uv run ruff check .
 uv run ruff format --check .
 uv run pytest -q
+node --test extension/tests/bridge.test.js
 uv build
 ```
 
-Tests exercise the real gkeepapi parser with mocked Google responses, OAuth/PKCE, secrets redaction, and real stdio and TCP HTTP server processes using the official MCP client. No Google account or browser automation is required. [Verification report](docs/VERIFICATION.md), [current behavior](LOGIC.md), [change history](CHANGELOG.md).
+Tests exercise the real gkeepapi parser with mocked Google responses, OAuth/PKCE, account isolation, secrets redaction, extension recovery, and real stdio/TCP HTTP processes. A Node extension bridge talks to a real hosted server using fake Google credentials; browser APIs are simulated. CI also builds the Docker image and checks encrypted volume persistence across container replacement. No Google account or browser automation is required. [Verification report](docs/VERIFICATION.md), [current behavior](LOGIC.md), [change history](CHANGELOG.md).
 
 Optional live HTTPS smoke (demo data only, requires cloudflared): `uv run python scripts/smoke_https.py`.
 

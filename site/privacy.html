@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="description" content="How the Keep Context extension preview handles your account, notes and connection credentials.">
+    <link rel="icon" href="./icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./style.css">
+    <title>Privacy in the preview — Keep Context</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="page">
+      <header class="header">
+        <a class="brand" href="./"><img src="./icon.svg" alt="" width="32" height="32"><span>Keep Context</span></a>
+        <nav aria-label="Main navigation"><a href="./connect.html">Connect</a><a href="https://github.com/spidey889/keep-context">GitHub</a></nav>
+      </header>
+      <main class="guide" id="main">
+        <p class="eyebrow">Updated 6 October 2026</p>
+        <h1>Your notes.<br>Your choice to connect.</h1>
+        <p class="guide-lead">Keep Context lets ChatGPT search and read the Google Keep account you connect. The application cannot create, edit or delete notes.</p>
+        <aside class="guide-notice">This explains the open-source extension and hosted preview. A third-party host must identify itself and disclose its own providers, retention and backup policy before accepting users. Check the service hostname in the extension and use a host you trust.</aside>
+        <section>
+          <h2>What the connection uses</h2>
+          <p>You enter a Google email and explicitly approve a connection. During that ten-minute sign-in, the extension reads one temporary authentication cookie from Google's account page and sends it over HTTPS to its configured host. It does not ask for your Google password.</p>
+          <p>The host exchanges that cookie for Google credentials, verifies Keep access, and stores the email, device identifier and credentials in an encrypted registry. Google credentials have broad account access. Encryption protects stored files; the running host can decrypt credentials to read Keep.</p>
+          <p>The extension saves a random management key locally so you can approve ChatGPT and disconnect. It uses extension-only storage, with no Chrome Sync. The host stores a hash of that key. Google cookies and master tokens are never saved in extension storage.</p>
+          <h2>What is read and shared</h2>
+          <p>The reader holds note text, titles, labels, timestamps and checklist items in memory. There is no notes database. Authenticated requests return the notes needed by ChatGPT; those results are then handled by ChatGPT under your OpenAI settings and policies.</p>
+          <p>The extension checks the active connection tab to approve that specific ChatGPT request. It does not scrape notes, inject page scripts, or collect browsing history. Its Google permission is removed after submission, failure or sign-in expiry. Browser permission itself covers more than one cookie; the implementation reads only the specified connection cookie.</p>
+          <h2>Limited use</h2>
+          <p>Keep Context uses account data only to provide the search, read, connection and disconnect features you request. The application contains no advertising, analytics, data-sale feature or use of account data for model training. Google credentials are not returned to ChatGPT or other MCP clients. A host's access to credentials is needed for the connection and should not be used to inspect unrelated account data.</p>
+          <p>Application access/debug logging is disabled. Google, your host, its network providers and OpenAI may process request metadata under their own policies. The static project website contains no tracking scripts or credential forms; GitHub Pages serves it.</p>
+          <h2>Disconnect and retention</h2>
+          <p>Click <strong>Disconnect Keep</strong> in the extension. This removes your current hosted account and cached reader, clears the browser key, and revokes its MCP grants. Removing the extension alone does not delete the hosted account. Reconnecting the same verified email revokes the old browser key and ChatGPT grants.</p>
+          <p>Disconnect does not revoke Google's upstream device/session. Use your Google account's security settings for that. It also cannot instantly erase existing host backups. The application does not create scheduled backups; a deployed host must disclose its backup retention and deletion process.</p>
+          <h2>Local mode and other hosts</h2>
+          <p>The local CLI uses your computer's credential vault or explicitly configured secrets. It has a separate OAuth state file and is independent of hosted accounts. A modified extension or third-party service can behave differently; this page does not make promises on their behalf.</p>
+          <h2>Questions or deletion help</h2>
+          <p>Contact the service host for account-specific help or deletion if you lose the extension key. For software questions, use the <a href="https://github.com/spidey889/keep-context/issues">project issue tracker</a>. Share only the safe error message; do not post credentials, email addresses or note contents in public issues.</p>
+        </section>
+        <p><a href="./connect.html">Back to the connection guide →</a></p>
+      </main>
+      <footer><a class="brand" href="./">Keep Context</a><a href="./connect.html">Connect</a><a href="https://github.com/spidey889/keep-context">Open source</a></footer>
+      <p class="colophon">An independent project. Not affiliated with Google or OpenAI.</p>
+    </div>
+  </body>
+</html>

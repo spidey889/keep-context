@@ -1,12 +1,32 @@
 # Current architecture and behavior
 
-Keep Context is a single-owner, read-only Google Keep MCP server. Python 3.11+, `gkeepapi==0.17.1`, `gpsoauth==2.0.0`, and official `mcp` SDK >=1.30,<2. `uv.lock` pins the tested dependency set.
+Keep Context is a read-only Google Keep MCP server. Local `serve` is single-owner; the separately opted-in hosted pilot isolates owners using authenticated SDK token subjects. Python 3.11+, `gkeepapi==0.17.1`, `gpsoauth==2.0.0`, and official `mcp` SDK >=1.30,<2. `uv.lock` pins the tested dependency set.
 
 ## Request path
 
 `ChatGPT → HTTPS proxy/tunnel → SDK OAuth authorization → /mcp → five read tools → serialized KeepBackend snapshot → gkeepapi → Google's private Keep sync API`.
 
-Stdio uses the same five tools but trusts the local MCP client process. No OpenAI API key or model calls are made by this project. There is one Google account for the whole process; it must not be shared as multi-user hosting.
+Stdio uses the same five tools but trusts the local MCP client process. No OpenAI API key or model calls are made by this project. Local `serve` has one Google account for the process and must not be shared as multi-user hosting.
+
+## Hosted consumer pilot
+
+`keep-context-hosted` is a separate entrypoint. It does not read the local vault or use the owner-password form. A Manifest V3 extension has a fixed service origin, extension-only local management key, optional Google cookie permission, and no content scripts/external messaging. Explicit consent/email precede manually completed Google sign-in. Only a ten-minute EmbeddedSetup session reads the single transient cookie; a hash baseline rejects old cookies. Submission immediately removes Google permission. Google secrets never enter extension storage/popup messages. Optional cookie listeners register when permission exists. Packaging replaces the source extension's loopback configuration with one trusted origin.
+
+The extension saves its random management key before submitting setup. Google verification runs in a bounded background job, returning immediately to avoid MV3 fetch deadlines. Authenticated progress polling recovers lost responses/closed popups. Jobs are ephemeral; credentials are saved only after verified Keep access. Upstream exceptions stay suppressed. Enrollment defaults to invitations, with explicit open enrollment. Capacity is 50 accounts, 20 cached readers, one concurrent enrollment and 12 attempts/minute globally. One process owns the registry; an OS lock rejects a second CLI writer.
+
+An expiry alarm removes Google permission after ten minutes, even when service requests fail. Start over clears abandoned sign-in state while preserving a server-accepted job/account. Recovering an accepted POST drops cookie permission without resubmitting its token. A submitted job lost to server restart returns to fresh setup instead of spinning. `KEEP_EXTENSION_ID` configures the exact permitted extension origin and rejects invalid IDs.
+
+Failed preflight/browser setup releases optional Google permission even before a login checkpoint exists. Profile startup and extension installation/update remove stale grants without network access, retain the local management key, and recreate progress polling. Lifecycle cleanup precedes popup messages; it does not run on ordinary worker wake, which could race a new user-approved grant. Verified hosted accounts survive a browser restart; incomplete browser sign-in starts fresh.
+
+The bridge binds native `fetch` to the worker global. Calling it as an unbound bridge property supplies the wrong browser receiver and can fail before any request reaches the service; Node's fetch does not enforce this receiver check. A dedicated regression models that browser contract, while the TCP test verifies the real service exchange.
+
+Extension archives allowlist seven runtime files and four local PNG icons; the packager reads binary assets unchanged. Toolbar/manager/store icons and the optional 256 px ChatGPT icon are rendered from `site/icon.svg` using a pinned developer-only renderer. They require no runtime library or remote asset fetch.
+
+The encrypted, atomically written registry holds account credentials, hashes of browser management keys, and SDK OAuth state. A separate operator-controlled Fernet key comes from runtime secrets. Encryption is at rest: the host decrypts credentials for Keep. Stable public URL/key/storage are required. Local CLI OAuth state stays separate.
+
+ChatGPT uses standard DCR/PKCE. `/connect` shows extension instructions plus CSRF-checked cancellation. On that exact origin/path/ticket, the extension displays account/callback host and asks for approval. Authenticated `/api/approve` assigns the account ID to the SDK code's `subject`; access/rotated refresh tokens retain it. The extension validates the ChatGPT callback before navigating the original tab. `/mcp` selects a reader solely from verified token subject, never a client-supplied account ID. Each tool retains its chosen backend through metadata access. Missing/disconnected subjects fail closed.
+
+Reconnecting a verified email rotates the management key and revokes old grants/codes/readers. Disconnect removes the account/cache/grants, but not Google's upstream session or host backups. Removing the extension alone is not server deletion. Docker uses locked dependencies and a non-root user; optional Render configuration uses one paid persistent service. Container CI registers an OAuth client to force an encrypted volume write, then replaces the container and verifies that client survives. Credentials never enter build/extension artifacts. The preview is not store-listed, and real browser sign-in remains manual verification.
 
 ## Google access
 
@@ -47,5 +67,7 @@ Optional `--tunnel` runs cloudflared over HTTP/2, suppresses raw log output, and
 `https://spidey889.github.io/keep-context/` is a static product/setup page from `site/`. Plain HTML/CSS and a local SVG require no build, browser script, tracking or external fonts. It contains illustrative examples and public documentation links, never owner notes, credentials or the owner's live MCP endpoint. GitHub Pages does not run the MCP server; users configure their own server/account.
 
 Public examples, demo notes and test fixtures use fictional gardening and travel topics. Demo IDs are `demo-garden` and `demo-trip`; the demo reads no Google account. Keep examples independent of the owner's personal projects.
+
+`connect.html` explains invited extension setup and recovery in plain language. `privacy.html` explains stock data handling without inventing a third-party host's policies. The extension links both. `scripts/package_plugin.py` produces a two-file portable Agent Plugins private-test ZIP for one origin; it contains only public presentation/connection metadata. It does not bundle secrets, invent review evidence, submit a store listing or replace the custom MCP fallback before real upload verification. Release prerequisites are in `docs/RELEASE.md`.
 
 `.github/workflows/pages.yml` deploys only `site/` on `main` changes to that folder/workflow or a manual dispatch. Actions are pinned to immutable commits; Pages write/OIDC permissions are limited to the deployment job. Server CI remains separate. Update README/site instructions together when setup behavior changes.

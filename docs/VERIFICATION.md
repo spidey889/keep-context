@@ -2,7 +2,31 @@
 
 ## Built
 
-Single-owner consumer Google Keep reader with the official MCP Python SDK. Five tools: title/body/checklist search, full-note fetch, recent notes, configured labels, and likely tasks. Supports local stdio and OAuth-protected, stateless Streamable HTTP with JSON responses. Includes hidden-input Google setup, native OS-vault storage, encrypted OAuth persistence, separate owner consent and optional one-command HTTPS tunnel startup.
+Consumer Google Keep reader with the official MCP Python SDK. Five tools: title/body/checklist search, full-note fetch, recent notes, configured labels, and likely tasks. Supports local stdio and OAuth-protected, stateless Streamable HTTP with JSON responses. Local mode includes hidden-input Google setup, native OS-vault storage, encrypted OAuth persistence, owner consent and one-command HTTPS tunnel startup. A separately opted-in extension/hosted preview adds passwordless onboarding and account isolation.
+
+## Consumer preview verification
+
+The complete suite passes **88 Python tests on Windows/Python 3.14** and **11 Node tests**, with passing lint, formatting and source/wheel builds. Added checks cover separate accounts with identical note IDs, subject retention through refresh/restart, encrypted registry, wrong origin/key/audience, invite/body limits, safe Google failures, permission expiry, lost responses, interrupted setup and disconnect/re-enrollment revocation. A Node extension bridge completes enrollment, approval, PKCE and all five MCP tools against an actual TCP server with fake Google credentials; it uses simulated Chrome APIs, not a browser.
+
+A separate public HTTPS hosted probe passed DCR/PKCE, extension-authorized passwordless consent, all five tools against **13 real Keep notes**, known-note search/full retrieval, safe missing-note errors and access denial after disconnect. It used the owner's already verified native-vault credentials in memory, seeded only into a temporary test registry. It did **not** prove a fresh EmbeddedSetup cookie exchange through the extension. Temporary accounts/grants, encrypted test state, server and tunnel were cleaned up; no account identifiers, secrets or note contents were printed.
+
+All five jobs in [the hosted preview CI run](https://github.com/spidey889/keep-context/actions/runs/37532664455) passed: Windows/Linux on Python 3.11/3.14 with Node 24, and Docker build/boot/recovery. The container check rejects anonymous MCP access, writes encrypted OAuth state as its non-root user, then replaces the container and verifies that the registered client survives on a volume. Docker is unavailable on the local host; this is actual GitHub Actions evidence.
+
+The private-test ChatGPT ZIP validates against both published Agent Plugins 1.0.0 JSON schemas. Inspection confirmed exactly two files, the intended hosted MCP URL, and no auth headers/credentials. Invalid origins are rejected before creating an archive, and rebuilding cannot overwrite an existing ZIP. Public setup/privacy pages pass HTML5 parsing, CSS parsing and local link/anchor checks. These checks do not prove plugin upload acceptance or visual/browser behavior.
+
+The permission-lifecycle follow-up passes **15 Node tests** and three focused Python packaging/TCP integration cases. Three regressions failed before the fix: failed preflight, partial browser setup and stale grants on profile restart. The worker-module test drives simulated startup events and popup messages while offline, then recovers a verified account without Google sign-in or disclosing the management key. This models Chrome's documented [session-storage clearing](https://developer.chrome.com/docs/extensions/reference/api/storage) and [profile startup event](https://developer.chrome.com/docs/extensions/reference/api/runtime#event-onStartup); it is not a real browser test.
+
+Extension packaging checks validate all four PNG dimensions, manifest/toolbar references and the exact eleven-file archive. The separate 256 px PNG is 4,326 bytes; it was visually inspected as the existing project mark. The optional pinned renderer reads only the local SVG and requires no browser.
+
+Remaining manual boundaries: fresh Google sign-in/cookie exchange, permission removal and popup recovery, plus linking the extension-backed account in ChatGPT. The owner's subsequent screenshot confirms unpacked installation in Brave, as described below. Stable hosting, real provider disk ownership/backups/deletion retention and store reviews are not verified or provisioned. [Preview steps and operator setup](CONSUMER.md).
+
+## Browser follow-up — 2026-10-06
+
+After the owner explicitly permitted browser use, real Brave checks rendered the published connection/privacy pages and reached ChatGPT's plugin setup. ChatGPT discovered the preview's OAuth endpoints, selected Dynamic Client Registration, and offered `keep:read`. Creating the requested preview plugin reached the **Connect Keep Context Preview** dialog. This proves client discovery and creation, not account authorization or note access through the extension.
+
+The selected browser tool rejected internal extension URLs; no workaround was attempted. Its file picker also required an unavailable local-file permission, so the plugin archive never reached ChatGPT validation. The custom MCP form remained usable. Subsequent state/screenshot requests timed out despite the same test tab remaining in the browser inventory; the sign-in continuation is not asserted. Unpacked extension installation and fresh Google connection still require user action. No browser credentials or cookies were inspected by the agent.
+
+The owner then installed the unpacked 0.2.0 preview in Brave and supplied a screenshot of its popup's service-reachability error. Public health/config checks passed. Source inspection found that `Bridge.request` called native `fetch` with a bridge receiver instead of the worker global, contrary to the [Web IDL operation receiver rules](https://webidl.spec.whatwg.org/#es-operations) for the [Fetch global method](https://fetch.spec.whatwg.org/#fetch-method). A receiver-checking test reproduced the same safe error before the fix; binding the global receiver passes all **16 Node tests** and **three focused Python packaging/TCP cases**. These tests model the browser contract; they do not prove the actual popup retry or fresh Google authentication. The corrected archive was copied into the existing desktop preview after checking that its files still matched the prior archive. Browser automation remains stopped at the owner's request.
 
 ## Verified
 
@@ -49,6 +73,6 @@ uv run keep-context serve --tunnel
 
 The connected owner can now ask ChatGPT about notes. Keep the server and tunnel running; do not run `connect` again for an already verified account. A new installation uses the printed `/mcp` URL with OAuth/DCR and the separate connection password. Useful manual checks are searching for a known note, reading it, and inspecting an unchecked item.
 
-Limitations: unofficial Google API/authentication may break or reject an account; one Google owner per server; keyword search and English prose task heuristics; no image/audio/drawing transcription or reminder retrieval; no write tools. Quick tunnel URLs change on restart. Stable HTTPS deployment preserves OAuth state and is preferable for everyday use.
+Limitations: unofficial Google API/authentication may break or reject an account; local mode has one Google owner per server; keyword search and English prose task heuristics; no image/audio/drawing transcription or reminder retrieval; no write tools. Quick tunnel URLs change on restart. Stable HTTPS deployment preserves OAuth state and is preferable for everyday use. Hosted preview has separate account isolation and the manual boundaries described above.
 
 The dependency stack currently emits benign deprecation warnings from Starlette's test-client integration and gpsoauth's TLS-context construction. Tests retain certificate verification and the upstream TLS adapter; no warning was worked around by disabling TLS.
