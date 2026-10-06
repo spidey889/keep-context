@@ -16,7 +16,16 @@ import uvicorn
 
 from .auth import OwnerOAuth
 from .backend import DemoBackend, KeepBackend, quiet_upstream
-from .credentials import Credentials, SetupError, disconnect, load_credentials, save_credentials
+from .credentials import (
+    Credentials,
+    SetupError,
+    clear_pending_credentials,
+    disconnect,
+    load_credentials,
+    load_pending_credentials,
+    save_credentials,
+    save_pending_credentials,
+)
 from .server import build_server, http_app
 from .state import EncryptedState
 from .tunnel import open_tunnel
@@ -74,35 +83,57 @@ def exchange_google_token(email: str, cookie: str, android_id: str) -> str:
     )
 
 
-def connect(use_master_token: bool = False) -> None:
+def connection_password() -> str:
+    while True:
+        password = hidden("Choose a separate ChatGPT connection password (20+ characters): ")
+        if not 20 <= len(password) <= 1024:
+            print("Use 20 to 1024 characters. Try again; your Google login is already saved.")
+            continue
+        if hidden("Confirm connection password: ") != password:
+            print("Passwords did not match. Try again; your Google login is already saved.")
+            continue
+        return password
+
+
+def connect(use_master_token: bool = False, restart: bool = False) -> None:
     print(
         "Keep Context stores credentials in your OS vault and never asks for your Google password."
     )
     print("Google master tokens have broad account access. Keep this server on a trusted computer.")
-    email = input("Google email: ").strip()
-    if "@" not in email or len(email) > 254:
-        raise SetupError("Enter a valid Google email address.")
-    android_id = secrets.token_hex(8)
-    if use_master_token:
-        token = hidden("Existing Google master token (hidden): ")
+    if restart or use_master_token:
+        clear_pending_credentials()
+    credentials = load_pending_credentials()
+    if credentials:
+        print("Resuming saved Google setup. No browser login or cookie is needed.")
     else:
-        print("Manually open https://accounts.google.com/EmbeddedSetup and sign in.")
-        print(
-            "In DevTools > Application/Storage > Cookies > accounts.google.com, copy oauth_token."
-        )
-        print("A stuck loading screen can be normal. Paste only into the hidden prompt below.")
-        print("Use a fresh cookie promptly; it expires quickly and can be used only once.")
-        oauth_token = hidden("oauth_token cookie (hidden): ")
-        token = exchange_google_token(email, oauth_token, android_id)
-    password = hidden("Choose a separate ChatGPT connection password (20+ characters): ")
-    if len(password) < 20 or len(password) > 1024:
-        raise SetupError("Connection password must have 20 to 1024 characters.")
-    if hidden("Confirm connection password: ") != password:
-        raise SetupError("Connection passwords did not match.")
-    credentials = Credentials(email, token, android_id, password)
+        email = input("Google email: ").strip()
+        if "@" not in email or len(email) > 254:
+            raise SetupError("Enter a valid Google email address.")
+        android_id = secrets.token_hex(8)
+        if use_master_token:
+            token = hidden("Existing Google master token (hidden): ")
+        else:
+            print("Manually open https://accounts.google.com/EmbeddedSetup and sign in.")
+            print(
+                "In DevTools > Application/Storage > Cookies > accounts.google.com, "
+                "copy oauth_token."
+            )
+            print("A stuck loading screen can be normal. Paste only into the hidden prompt below.")
+            print("Use a fresh cookie promptly; it expires quickly and can be used only once.")
+            oauth_token = hidden("oauth_token cookie (hidden): ")
+            token = exchange_google_token(email, oauth_token, android_id)
+        credentials = Credentials(email, token, android_id)
     print("Verifying read access to Google Keep...")
     notes = KeepBackend(credentials).snapshot()
+    save_pending_credentials(credentials)
+    print("Google login verified and saved. If interrupted, run connect again to resume.")
+    try:
+        credentials.connect_password = connection_password()
+    except KeyboardInterrupt:
+        print("\nSetup paused. Run: uv run keep-context connect (no browser login needed).")
+        return
     save_credentials(credentials)
+    clear_pending_credentials()
     print(
         f"Connected and verified {sum(not note.trashed for note in notes)} notes. "
         "Credentials saved in the OS vault."
@@ -134,6 +165,9 @@ def main() -> None:
         "connect", help="Connect Google Keep using hidden prompts and OS vault."
     )
     setup.add_argument("--master-token", action="store_true", help="Use an existing master token.")
+    setup.add_argument(
+        "--restart", action="store_true", help="Discard saved setup progress and sign in again."
+    )
     commands.add_parser("disconnect", help="Delete local OS-vault credentials (stop server first).")
     check = commands.add_parser(
         "doctor", help="Verify connection and count notes without displaying them."
@@ -171,7 +205,7 @@ def main() -> None:
     args = parser.parse_args()
     try:
         if args.command == "connect":
-            connect(args.master_token)
+            connect(args.master_token, args.restart)
         elif args.command == "disconnect":
             disconnect()
             print("Removed credentials from the OS vault. Revoke Google's session separately.")

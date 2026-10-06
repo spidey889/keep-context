@@ -16,7 +16,7 @@ uv run keep-context connect
 uv run keep-context doctor
 ```
 
-`connect` walks you through one manual Google sign-in and asks for a hidden token input. It verifies Keep access before saving credentials in the OS vault. It also asks you to choose a separate password for connecting ChatGPT. **Never paste Google tokens into ChatGPT.** See [authentication instructions](docs/AUTHENTICATION.md).
+`connect` walks you through one manual Google sign-in and asks for a hidden token input. It verifies Keep access, saves setup progress in the OS vault, and asks you to choose a separate password for connecting ChatGPT. Invalid passwords retry in place. If interrupted during that step, rerun the same command to resume without another browser sign-in. **Never paste Google tokens into ChatGPT.** See [authentication instructions](docs/AUTHENTICATION.md).
 
 To expose a temporary HTTPS endpoint, install [cloudflared](https://developers.cloudflare.com/tunnel/downloads/) (Windows: `winget install -e --id Cloudflare.cloudflared`), then run:
 

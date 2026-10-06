@@ -7,11 +7,28 @@ import pytest
 from keep_context.credentials import (
     Credentials,
     SetupError,
+    clear_pending_credentials,
+    disconnect,
     load_credentials,
+    load_pending_credentials,
     save_credentials,
+    save_pending_credentials,
     secure_keyring,
 )
 from keep_context.state import EncryptedState
+
+
+@pytest.fixture
+def native_vault(monkeypatch):
+    monkeypatch.delenv("KEEP_EMAIL", raising=False)
+    monkeypatch.delenv("KEEP_MASTER_TOKEN", raising=False)
+    native = type("Vault", (), {"__module__": "keyring.backends.Windows"})()
+    monkeypatch.setattr(keyring, "get_keyring", lambda: native)
+    store = {}
+    monkeypatch.setattr(keyring, "set_password", lambda s, e, v: store.update({(s, e): v}))
+    monkeypatch.setattr(keyring, "get_password", lambda s, e: store.get((s, e)))
+    monkeypatch.setattr(keyring, "delete_password", lambda s, e: store.pop((s, e), None))
+    return store
 
 
 def test_environment_credentials_and_safe_repr(monkeypatch):
@@ -58,6 +75,48 @@ def test_keyring_error_redacted(monkeypatch):
     with pytest.raises(SetupError, match="Cannot save") as error:
         save_credentials(Credentials("email", "token", "id"))
     assert "secret" not in str(error.value)
+
+
+def test_setup_progress_is_separate_and_disconnect_removes_both(native_vault):
+    existing = Credentials("old@example.com", "old-token", "old-id", "old-connection-password")
+    pending = Credentials("new@example.com", "new-token", "new-id", "unused-secret-password")
+    save_credentials(existing)
+    assert load_pending_credentials() is None
+    save_pending_credentials(pending)
+    assert load_credentials() == existing
+    restored = load_pending_credentials()
+    assert restored.master_token == pending.master_token and restored.connect_password == ""
+    clear_pending_credentials()
+    assert load_pending_credentials() is None and load_credentials() == existing
+    save_pending_credentials(pending)
+    disconnect()
+    assert not native_vault
+
+
+def test_progress_cannot_be_used_as_server_credentials(native_vault):
+    save_pending_credentials(Credentials("fake@example.com", "fake-token", "id"))
+    with pytest.raises(SetupError, match="not connected"):
+        load_credentials()
+
+
+@pytest.mark.parametrize("operation", ["load", "save", "delete"])
+def test_setup_progress_vault_errors_are_redacted(monkeypatch, native_vault, operation):
+    broken = Mock(side_effect=RuntimeError("sensitive-upstream-secret"))
+    if operation == "load":
+        monkeypatch.setattr(keyring, "get_password", broken)
+        action = load_pending_credentials
+    elif operation == "save":
+        monkeypatch.setattr(keyring, "set_password", broken)
+
+        def action():
+            save_pending_credentials(Credentials("fake", "fake-token", "id"))
+
+    else:
+        monkeypatch.setattr(keyring, "delete_password", broken)
+        action = clear_pending_credentials
+    with pytest.raises(SetupError) as error:
+        action()
+    assert "sensitive-upstream-secret" not in str(error.value)
 
 
 def test_encrypted_state_and_atomic_roundtrip(tmp_path):

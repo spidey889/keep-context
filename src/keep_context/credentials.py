@@ -8,6 +8,7 @@ import keyring
 
 SERVICE = "keep-context"
 ENTRY = "account"
+PENDING_ENTRY = "setup-progress"
 
 
 class SetupError(Exception):
@@ -77,9 +78,41 @@ def save_credentials(credentials: Credentials) -> None:
         ) from None
 
 
-def disconnect() -> None:
+def load_pending_credentials() -> Credentials | None:
     secure_keyring()
     try:
-        keyring.delete_password(SERVICE, ENTRY)
+        raw = keyring.get_password(SERVICE, PENDING_ENTRY)
+        return Credentials(**json.loads(raw)) if raw else None
+    except Exception:
+        raise SetupError("Cannot read saved setup progress from the OS vault.") from None
+
+
+def save_pending_credentials(credentials: Credentials) -> None:
+    secure_keyring()
+    # Only called after a successful Keep read. The server never loads this entry;
+    # it preserves the verified Google login while the owner chooses a password.
+    try:
+        value = {**vars(credentials), "connect_password": ""}
+        keyring.set_password(SERVICE, PENDING_ENTRY, json.dumps(value))
+    except Exception:
+        raise SetupError("Cannot save setup progress to the OS vault.") from None
+
+
+def clear_pending_credentials() -> None:
+    secure_keyring()
+    _delete_entry(PENDING_ENTRY)
+
+
+def _delete_entry(entry: str) -> None:
+    try:
+        keyring.delete_password(SERVICE, entry)
     except keyring.errors.PasswordDeleteError:
         pass
+    except Exception:
+        raise SetupError("Cannot remove credentials from the OS vault.") from None
+
+
+def disconnect() -> None:
+    secure_keyring()
+    _delete_entry(ENTRY)
+    _delete_entry(PENDING_ENTRY)

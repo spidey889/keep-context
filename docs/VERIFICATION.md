@@ -8,6 +8,8 @@ Single-owner consumer Google Keep reader with the official MCP Python SDK. Five 
 
 The initial release passed **47 tests on Windows with Python 3.11 and Python 3.14**, plus lint, formatting and wheel/source-distribution builds. The authentication follow-up passes the full **56-test suite on Windows with Python 3.14**, lint and formatting. Its nine added cases cover incorrectly copied cookies before network access, recognized error codes, and suppression of upstream secrets/exceptions.
 
+The resumable-setup fix passes the full **66-test suite on Windows with Python 3.14**, lint and formatting. Ten further cases cover password retry, interrupted setup/resume without repeating Google exchange, verification-before-checkpoint, final-save failure, separate progress/server credentials, cleanup and safe vault errors. An actual Windows credential-vault smoke passed checkpoint/save/read/isolation/cleanup using fake data under a unique test service; that entry was removed afterward.
+
 - Real `gkeepapi` hydration/conversion using mocked Google wire responses: plain notes, labels, checklist order/hierarchy, checked state, empty lists and repeat synchronization. Assertions inspect outgoing requests and prove no note/label mutation payload is sent.
 - Query behavior: title/body/checklist and Unicode matching, all-keyword semantics, ranking, pagination, excerpts, archive/label filters, excluded trash, complete retrieval and task heuristics/checked-item omission.
 - OAuth HTTP flow: protected-resource and authorization metadata, DCR, callback allowlist, escaped consent content, CSRF/password rejection, rate limiting, PKCE, client binding, wrong audience, expiration, single-use codes, rotating refresh tokens and pair revocation.
@@ -21,7 +23,7 @@ The initial HTTPS probe failed before the tunnel was reachable. Startup was corr
 
 ## Remaining manual verification
 
-No Google Keep credentials were present during initial verification. The user's subsequent manual EmbeddedSetup attempt reached Google's token exchange, which Google rejected; the original generic error did not preserve a safe reason. The updated setup is ready for a fresh-cookie retry and will show recognized safe error codes. No real Google account has been read and no actual ChatGPT plugin has been installed. **Mocked Google responses, official MCP client tests and a real HTTPS tunnel do not prove live Google authentication or ChatGPT account availability.**
+No Google Keep credentials were present during initial verification. The user's first manual EmbeddedSetup exchange was rejected; a fresh-cookie retry succeeded. The original password validation then exited on a short password before Keep verification or credential storage, losing that token. Setup now retries passwords and resumes verified Google access from a separate native-vault checkpoint. No real Google account has yet been read and no actual ChatGPT plugin has been installed. **Mocked Google responses, official MCP client tests and a real HTTPS tunnel do not prove live Keep access or ChatGPT account availability.**
 
 The smallest remaining step is local account setup:
 

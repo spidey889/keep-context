@@ -1,5 +1,12 @@
 # Changelog
 
+## Resumable setup — 2026-10-06
+
+- The user's next cookie exchange succeeded, but a short connection password caused setup to exit before Keep verification or credential storage. That successful token was lost and could not be recovered from the exited process.
+- Replaced exit-on-invalid-password behavior with retries for length and confirmation errors. Verify Keep first and preserve the Google login in a separate native-vault checkpoint before password setup; interrupted setup resumes with the same `connect` command.
+- Keep checkpoints separate from server credentials and existing connected accounts. Remove progress after completed setup or disconnect; `connect --restart` explicitly starts a new Google sign-in. Rejected exchange/Keep verification is never saved.
+- All 66 tests pass on Windows/Python 3.14, with passing lint/format checks. Tested actual Windows credential-vault checkpoint/save/isolation/cleanup using fake data under an isolated service, then removed the test entry.
+
 ## Authentication follow-up — 2026-10-06
 
 - A real user's first cookie exchange was rejected by Google; the generic error hid the reason, so no account access has yet been verified. Show only an allowlist of safe Google error codes with actionable instructions, preserving suppression of raw responses and secrets.
