@@ -15,24 +15,24 @@ def search(notes, query, **kwargs):
 
 
 def test_titles_bodies_checklists_unicode_and_archive(notes):
-    result = search(notes, "vlc")
-    assert {n["id"] for n in result["results"]} == {"vlc", "list", "archive", "unicode"}
+    result = search(notes, "trip")
+    assert {n["id"] for n in result["results"]} == {"trip", "list", "archive", "unicode"}
     assert result["results"][0]["id"] in ("archive", "unicode")
-    assert search(notes, "CAP context")["results"][0]["id"] == "cap"
+    assert search(notes, "GARDEN plan")["results"][0]["id"] == "garden"
     assert search(notes, "STRASSE")["results"][0]["id"] == "unicode"
 
 
 def test_all_terms_and_label_filters(notes):
-    assert search(notes, "VLC default")["total"] == 1
-    assert search(notes, "VLC", label="projects")["total"] == 1
-    assert search(notes, "VLC", include_archived=False)["total"] == 3
+    assert search(notes, "Trip booking")["total"] == 1
+    assert search(notes, "Trip", label="projects")["total"] == 1
+    assert search(notes, "Trip", include_archived=False)["total"] == 3
     assert search(notes, "absent")["results"] == []
-    assert search(notes, "vlc", label="missing")["total"] == 0
+    assert search(notes, "trip", label="missing")["total"] == 0
 
 
 def test_pagination_and_empty_query(notes):
-    first = search(notes, "VLC", limit=2)
-    second = search(notes, "VLC", offset=first["next_offset"], limit=2)
+    first = search(notes, "Trip", limit=2)
+    second = search(notes, "Trip", offset=first["next_offset"], limit=2)
     assert len(first["results"]) == len(second["results"]) == 2
     assert second["next_offset"] is None
     assert page([], 5, 20) == {"results": [], "total": 0, "next_offset": None}
@@ -41,9 +41,9 @@ def test_pagination_and_empty_query(notes):
 
 
 def test_excerpt_finds_late_match(notes):
-    note = notes[0].model_copy(update={"body": "x " * 500 + "VLC last line"})
-    excerpt = summary(note, "VLC")["snippet"]
-    assert "VLC" in excerpt and excerpt.startswith("…") and len(excerpt) < 360
+    note = notes[0].model_copy(update={"body": "x " * 500 + "Trip last line"})
+    excerpt = summary(note, "Trip")["snippet"]
+    assert "Trip" in excerpt and excerpt.startswith("…") and len(excerpt) < 360
 
 
 def test_checklist_body_and_hierarchy(notes):
@@ -56,7 +56,7 @@ def test_checklist_body_and_hierarchy(notes):
 def test_tasks_distinguish_heuristics_and_checked_items(notes):
     result = likely_tasks(notes, False, None)
     texts = {t["text"] for t in result}
-    assert {"VLC test device", "Nested task", "Ship release", "Remember to call Sam"} <= texts
+    assert {"Trip packing list", "Nested task", "Ship release", "Remember to call Sam"} <= texts
     assert "Buy bread" not in texts
     assert not any("build" in text or "Completed:" in text or "hidden" in text for text in texts)
     assert any(t["reason"] == "task_language" and t["confidence"] == "likely" for t in result)

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f7f6f2">
+    <meta name="description" content="Search and read your Google Keep notes in ChatGPT. A small, open-source, read-only MCP server that runs on your computer.">
+    <meta property="og:title" content="Keep Context — Your Keep notes. One conversation.">
+    <meta property="og:description" content="Find saved ideas, read full notes, and pick up unfinished tasks from Google Keep in ChatGPT.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://spidey889.github.io/keep-context/">
+    <link rel="canonical" href="https://spidey889.github.io/keep-context/">
+    <link rel="icon" href="./icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./style.css">
+    <title>Keep Context — Your Keep notes. One conversation.</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="page">
+      <header class="header">
+        <a class="brand" href="./" aria-label="Keep Context home">
+          <img src="./icon.svg" alt="" width="32" height="32">
+          <span>Keep Context</span>
+        </a>
+        <nav aria-label="Main navigation">
+          <a href="#setup">Set it up</a>
+          <a class="github-link" href="https://github.com/spidey889/keep-context">GitHub <span aria-hidden="true">↗</span></a>
+        </nav>
+      </header>
+
+      <main id="main">
+        <section class="hero" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <p class="eyebrow"><span class="small-dot" aria-hidden="true"></span> Google Keep → ChatGPT</p>
+            <h1 id="hero-title">Your Keep notes.<br><em>One conversation.</em></h1>
+            <p class="intro">Find the idea you saved. Read the whole note. Pick up the tasks you left behind.</p>
+            <div class="actions">
+              <a class="button" href="#setup">Get started <span aria-hidden="true">↗</span></a>
+              <a class="text-link" href="https://github.com/spidey889/keep-context">Explore the code <span aria-hidden="true">→</span></a>
+            </div>
+            <p class="hero-meta">Read only <span>·</span> Open source <span>·</span> Runs on your computer</p>
+          </div>
+
+          <figure class="example">
+            <div class="example-window">
+              <div class="window-top"><span class="window-dot" aria-hidden="true"></span><span>A conversation with your notes</span></div>
+              <p class="example-question">Search my notes for weekend trip.</p>
+              <div class="note-card">
+                <div class="note-top"><span class="note-source">From Google Keep</span><span class="note-label">Travel</span></div>
+                <h2>Weekend trip plans</h2>
+                <p>Saturday: a walk by the lake.<br>Sunday: explore the old town.</p>
+                <p class="checklist"><span class="checkbox" aria-hidden="true"></span>Book a place to stay</p>
+                <div class="note-bottom"><span>Full note + checklist</span><span aria-hidden="true">↗</span></div>
+              </div>
+              <p class="example-follow-up">“What do I still need to do?”</p>
+            </div>
+            <figcaption>Illustrative example. Your own notes, when connected.</figcaption>
+          </figure>
+        </section>
+
+        <section class="capabilities" aria-labelledby="capabilities-title">
+          <div class="section-heading">
+            <p class="eyebrow">Small tool. Useful questions.</p>
+            <h2 id="capabilities-title">Less digging.<br>More doing.</h2>
+          </div>
+          <div class="capability-list">
+            <article>
+              <span class="number">01</span>
+              <div><h3>Find what you wrote</h3><p>Search titles, note text and checklist items. Read the full note when you find it.</p></div>
+            </article>
+            <article>
+              <span class="number">02</span>
+              <div><h3>Pick up loose ends</h3><p>Bring unchecked items and likely TODOs into the conversation. Checklist structure stays intact.</p></div>
+            </article>
+            <article>
+              <span class="number">03</span>
+              <div><h3>Keep up with your notes</h3><p>Browse recent notes and labels. New notes are picked up on a request after the one-minute refresh interval.</p></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="setup" id="setup" aria-labelledby="setup-title">
+          <div class="setup-heading">
+            <p class="eyebrow">Get connected</p>
+            <h2 id="setup-title">A small server.<br>Your own account.</h2>
+            <p>Install <a href="https://docs.astral.sh/uv/getting-started/installation/">uv</a> and Python 3.11+, then open a terminal. Setup includes one manual Google sign-in step; the guide walks you through it.</p>
+            <a class="text-link" href="https://github.com/spidey889/keep-context/blob/main/docs/AUTHENTICATION.md">Read the sign-in guide <span aria-hidden="true">→</span></a>
+          </div>
+          <ol class="setup-steps">
+            <li>
+              <div class="step-heading"><span class="step-number">1</span><h3>Connect Google Keep</h3></div>
+              <pre tabindex="0"><code>git clone https://github.com/spidey889/keep-context.git
+cd keep-context
+uv sync --locked
+uv run keep-context connect
+uv run keep-context doctor</code></pre>
+              <p>Save the separate connection password you choose. Google credentials stay in your OS vault.</p>
+            </li>
+            <li>
+              <div class="step-heading"><span class="step-number">2</span><h3>Start the server</h3></div>
+              <p>Install <a href="https://developers.cloudflare.com/tunnel/downloads/">cloudflared</a>. On Windows:</p>
+              <pre tabindex="0"><code>winget install -e --id Cloudflare.cloudflared</code></pre>
+              <pre tabindex="0"><code>uv run keep-context serve --tunnel</code></pre>
+              <p>Keep the terminal running. Copy the printed HTTPS URL ending in <code>/mcp</code>.</p>
+            </li>
+            <li>
+              <div class="step-heading"><span class="step-number">3</span><h3>Add it to ChatGPT</h3></div>
+              <p>Open Plugins → Add → Create custom MCP server. Paste your server URL, choose OAuth with dynamic client registration, and approve using your connection password.</p>
+              <p>Select Keep Context with <code>@</code> in a new chat. Then ask about your notes.</p>
+              <a class="text-link" href="https://github.com/spidey889/keep-context/blob/main/docs/CHATGPT.md">Full ChatGPT setup <span aria-hidden="true">→</span></a>
+            </li>
+          </ol>
+        </section>
+
+        <section class="details" aria-labelledby="details-title">
+          <h2 id="details-title">A few things to know.</h2>
+          <div class="detail-grid">
+            <div><h3>Your notes stay in Keep</h3><p>The server holds an in-memory copy for reading, with no notes database. Notes you ask ChatGPT to read are shared with ChatGPT.</p></div>
+            <div><h3>Read access, by design</h3><p>It can search and read notes, labels and checklists. It cannot create, edit or delete them. One Google account per server.</p></div>
+            <div><h3>Simple, with honest limits</h3><p>Consumer Keep access uses an unofficial API. Search is keyword based; prose TODO detection is a best effort. Images, audio and reminders are outside this MVP.</p></div>
+            <div><h3>Keep your server running</h3><p>The temporary URL changes when you restart the tunnel. For everyday use, the setup guide covers a stable HTTPS address.</p></div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <a class="brand" href="./"><img src="./icon.svg" alt="" width="24" height="24"><span>Keep Context</span></a>
+        <p>Open source. MIT licensed.</p>
+        <a href="https://github.com/spidey889/keep-context">Built in the open <span aria-hidden="true">↗</span></a>
+      </footer>
+      <p class="colophon">An independent project. Not affiliated with Google or OpenAI.</p>
+    </div>
+  </body>
+</html>

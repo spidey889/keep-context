@@ -1,5 +1,14 @@
 # Changelog
 
+## Public repository and project website — 2026-10-06
+
+- The owner requested making the repository public and publishing a small GitHub Pages site. Added a minimal responsive page with example prompts, capabilities, a three-step setup guide and clear product limits. It uses local HTML/CSS/SVG without scripts, analytics, remote fonts or a frontend dependency stack.
+- Polished the README with the same identity, website/setup links and an explanation of live Keep access and the in-memory refresh behavior.
+- At the owner's request, replaced personal-project examples throughout the site, documentation, demo notes, tool descriptions and corresponding fixtures with fictional gardening/travel examples. Folded this correction into the website publication commit.
+- Added a separate Pages workflow with pinned action commits and scoped deployment permissions. Only `site/` becomes the Pages artifact; private server state and scratch files stay outside it. The public site does not host the MCP server or accept credentials.
+- GitHub CLI was already authenticated; changed repository visibility to public and configured its homepage/topics and Pages publishing through the API. Publication history/content scans found no real secrets. Two explicitly fake test credentials are ignored only by their exact historical scanner fingerprints.
+- Validated HTML, CSS and workflow syntax, local assets/anchors, keyboard/reduced-motion styles and small-text contrast. Browser automation remains prohibited, so visual appearance is left for the owner's review of the published site.
+
 ## ChatGPT connection confirmed — 2026-10-06
 
 - After the consent-policy fix, the owner successfully authorized Keep Context in Brave and used it in ChatGPT. Their screenshot shows 13 notes including archived notes, matching the real Google account check. Safe server diagnostics independently confirm consent redirect, token exchange and authenticated MCP calls.

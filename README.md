@@ -1,8 +1,16 @@
+<p><img src="site/icon.svg" width="48" height="48" alt=""></p>
+
 # Keep Context
+
+**Your Google Keep notes. One conversation.**
+
+[Website](https://spidey889.github.io/keep-context/) · [Get started](#quick-start) · [Authentication guide](docs/AUTHENTICATION.md) · [Verification](docs/VERIFICATION.md)
 
 Search and read your Google Keep notes in ChatGPT. One account per server, five read-only tools, no database or paid AI API required.
 
-Ask things like **“What did I write about Cap Context?”**, **“Search my notes for VLC”**, or **“What do I still need to do?”**
+Keep Context reads from your connected Google Keep account and refreshes an in-memory snapshot as needed. New notes become available on the next request after the one-minute refresh interval. It never writes a notes database.
+
+Ask things like **“What did I write about my garden?”**, **“Search my notes for weekend trip”**, or **“What do I still need to do?”**
 
 ## Quick start
 
@@ -88,5 +96,11 @@ uv build
 Tests exercise the real gkeepapi parser with mocked Google responses, OAuth/PKCE, secrets redaction, and real stdio and TCP HTTP server processes using the official MCP client. No Google account or browser automation is required. [Verification report](docs/VERIFICATION.md), [current behavior](LOGIC.md), [change history](CHANGELOG.md).
 
 Optional live HTTPS smoke (demo data only, requires cloudflared): `uv run python scripts/smoke_https.py`.
+
+## Website
+
+The minimal project site lives in `site/`. It uses plain HTML/CSS and a local SVG, with no JavaScript, tracking or external font requests. GitHub Actions publishes only this folder to [GitHub Pages](https://spidey889.github.io/keep-context/), on changes to the site or its publishing workflow. The site explains setup; each user's authenticated MCP server runs separately.
+
+To preview locally, run `python -m http.server 8080 --directory site` and open `http://localhost:8080`. Changes to server code do not redeploy the site. The live website is independent of your temporary MCP tunnel.
 
 MIT licensed. Dependencies retain their respective licenses.

@@ -75,7 +75,7 @@ def build_server(backend, oauth: OwnerOAuth | None = None, port: int = 8000) -> 
         include_archived: bool = True,
         label: str | None = None,
     ) -> dict[str, Any]:
-        """Search note titles, bodies and checklist items. Use keywords (e.g. Cap Context, VLC).
+        """Search note titles, bodies and checklist items. Use keywords (e.g. garden, trip).
 
         Case-insensitive substring matching: every whitespace-separated keyword must match.
         Titles rank first; ties use last modification time. label is an exact label name.

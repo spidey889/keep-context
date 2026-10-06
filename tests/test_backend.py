@@ -19,10 +19,10 @@ from keep_context.credentials import Credentials, SetupError
 @pytest.fixture
 def google(monkeypatch):
     source = gkeepapi.Keep()
-    note = source.createNote("Cap Context", "VLC in the body\nTODO: interview")
+    note = source.createNote("Garden plan", "Trip in the body\nTODO: book train")
     label = source.createLabel("Projects")
     note.labels.add(label)
-    checklist = source.createList("VLC tasks", [("Pending", False), ("Finished", True)])
+    checklist = source.createList("Trip tasks", [("Pending", False), ("Finished", True)])
     checklist.add("Nested", False).indent(checklist.items[0])
     # dump() includes local dirty/cache markers in arrays too. save(clean=True)
     # produces the actual wire representation Google returns.
@@ -52,9 +52,9 @@ def test_real_gkeepapi_sync_conversion_and_no_uploads(google):
     backend, wire, auth = google
     result = backend.snapshot()
     assert len(result) == 2
-    note = next(n for n in result if n.title == "Cap Context")
-    assert note.body.startswith("VLC") and note.labels == ["Projects"]
-    checklist = next(n for n in result if n.title == "VLC tasks")
+    note = next(n for n in result if n.title == "Garden plan")
+    assert note.body.startswith("Trip") and note.labels == ["Projects"]
+    checklist = next(n for n in result if n.title == "Trip tasks")
     assert checklist.body == ""
     assert len(checklist.checklist) == 3
     assert any(item.parent_id for item in checklist.checklist)

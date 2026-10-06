@@ -10,7 +10,7 @@ The MCP transport uses stateless Streamable HTTP with JSON responses. This avoid
 2. Name it **Keep Context**. Enter the printed HTTPS URL including `/mcp`.
 3. Choose **OAuth**; choose **DCR/dynamic client registration** if the interface asks. Do not choose CIMD: this server advertises DCR. No pre-created client ID/secret is needed.
 4. Follow the authorization link. Enter only your separate Keep Context connection password and approve read access.
-5. Install/select the plugin using `@` in a new chat. Ask “Search my notes for VLC,” then “Read that note,” and “What do I still need to do?”
+5. Install/select the plugin using `@` in a new chat. Ask “Search my notes for weekend trip,” then “Read that note,” and “What do I still need to do?”
 
 Current OpenAI documentation describes this as a custom MCP plugin. Older accounts/interfaces may call it an app or connector and expose developer mode under settings. Workspace permissions or account availability can prevent adding custom servers. Follow the account's current interface and [official connection instructions](https://developers.openai.com/api/docs/guides/custom-mcp-server).
 

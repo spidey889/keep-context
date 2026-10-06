@@ -179,26 +179,25 @@ class DemoBackend:
         self.labels = ["Projects", "Ideas"]
         self._notes = [
             Note(
-                id="demo-cap-context",
-                title="Cap Context interviews",
-                body="Talk to college students about chat transfers.\n"
-                "TODO: ask for their last transfer.",
+                id="demo-garden",
+                title="Garden plan",
+                body="Choose vegetables for spring.\nTODO: order seeds.",
                 labels=["Projects", "Ideas"],
                 url="https://keep.google.com/",
                 created=now,
                 updated=now,
             ),
             Note(
-                id="demo-vlc",
-                title="VLC follow-up",
+                id="demo-trip",
+                title="Weekend trip",
                 body="",
                 labels=["Projects"],
                 url="https://keep.google.com/",
                 created=now,
                 updated=now,
                 checklist=[
-                    ChecklistItem(id="vlc-1", text="Test default app handling", checked=False),
-                    ChecklistItem(id="vlc-2", text="Build VLC", checked=True),
+                    ChecklistItem(id="trip-1", text="Book a place to stay", checked=False),
+                    ChecklistItem(id="trip-2", text="Pack a bag", checked=True),
                 ],
             ),
         ]

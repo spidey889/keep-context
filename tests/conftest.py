@@ -11,16 +11,16 @@ def notes():
     common = {"created": now, "updated": now, "url": "https://keep.google.com/"}
     return [
         Note(
-            id="cap",
-            title="Cap Context",
-            body="Interview students\nTODO: show last transfer",
+            id="garden",
+            title="Garden plan",
+            body="Choose vegetables\nTODO: order seeds",
             labels=["Projects"],
             **common,
         ),
         Note(
-            id="vlc",
-            title="Video work",
-            body="Investigate VLC and default app handling",
+            id="trip",
+            title="Travel plans",
+            body="Plan a trip and hotel booking",
             labels=["Projects", "Work"],
             **{**common, "updated": now - timedelta(hours=1)},
         ),
@@ -29,7 +29,7 @@ def notes():
             title="Shopping",
             body="",
             checklist=[
-                ChecklistItem(id="1", text="VLC test device", checked=False),
+                ChecklistItem(id="1", text="Trip packing list", checked=False),
                 ChecklistItem(id="2", text="Buy bread", checked=True),
                 ChecklistItem(id="3", text="Nested task", checked=False, parent_id="1"),
             ],
@@ -37,21 +37,21 @@ def notes():
         ),
         Note(
             id="archive",
-            title="VLC history",
-            body="Need to compare releases",
+            title="Trip history",
+            body="Need to compare routes",
             archived=True,
             labels=["Old"],
             **common,
         ),
         Note(
             id="trash",
-            title="VLC deleted",
+            title="Trip deleted",
             body="TODO: should stay hidden",
             trashed=True,
             labels=["Deleted"],
             **common,
         ),
-        Note(id="unicode", title="Straße ＶＬＣ", body="Über diese Notiz", **common),
+        Note(id="unicode", title="Straße ＴＲＩＰ", body="Über diese Notiz", **common),
         Note(
             id="markdown",
             title="Ideas",

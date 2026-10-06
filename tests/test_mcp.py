@@ -33,7 +33,7 @@ def test_tool_contract_and_mocked_queries(notes):
             "find_tasks",
         }
         assert all(t.annotations.readOnlyHint and not t.annotations.destructiveHint for t in tools)
-        _, search = await server.call_tool("search", {"query": "VLC", "limit": 2})
+        _, search = await server.call_tool("search", {"query": "Trip", "limit": 2})
         assert search["total"] == 4 and search["next_offset"] == 2
         _, fetched = await server.call_tool("fetch", {"id": "list"})
         assert len(fetched["metadata"]["checklist"]) == 3
@@ -58,10 +58,10 @@ def test_stdio_process_and_tool_errors():
         async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
             await session.initialize()
             assert len((await session.list_tools()).tools) == 5
-            found = await session.call_tool("search", {"query": "Cap Context"})
-            assert found.structuredContent["results"][0]["id"] == "demo-cap-context"
-            fetched = await session.call_tool("fetch", {"id": "demo-vlc"})
-            assert "- [x] Build VLC" in fetched.structuredContent["text"]
+            found = await session.call_tool("search", {"query": "Garden plan"})
+            assert found.structuredContent["results"][0]["id"] == "demo-garden"
+            fetched = await session.call_tool("fetch", {"id": "demo-trip"})
+            assert "- [x] Pack a bag" in fetched.structuredContent["text"]
             for name, args in [
                 ("search", {"query": " "}),
                 ("search", {"query": "a", "limit": 0}),
@@ -119,8 +119,8 @@ def test_http_process_oauth_and_official_sdk(monkeypatch):
                         assert len(tools) == 5
                         assert all(t.meta["securitySchemes"][0]["type"] == "oauth2" for t in tools)
                         for name, args in [
-                            ("search", {"query": "Cap Context"}),
-                            ("fetch", {"id": "demo-vlc"}),
+                            ("search", {"query": "Garden plan"}),
+                            ("fetch", {"id": "demo-trip"}),
                             ("list_recent_notes", {}),
                             ("list_labels", {}),
                             ("find_tasks", {}),

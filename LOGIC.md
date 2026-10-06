@@ -41,3 +41,11 @@ Consent pages and their retry/redirect responses set CSP `form-action` to self p
 Completed OAuth clients/tokens persist atomically in `.keep-context/oauth.enc`, encrypted with Fernet using domain-separated SHA-256 derivation from the high-entropy Google master token. No note data or Google credentials are in that file. Changing the master token or public resource requires `--reset-access`. Consent tickets/codes are ephemeral. Run one process/worker for each state file.
 
 Optional `--tunnel` runs cloudflared over HTTP/2, suppresses raw log output, and waits for both a URL and a registered tunnel connection within a 45-second startup deadline. It cleans up its child process on shutdown. Temporary hostnames invalidate old OAuth access. Stable public URLs preserve sessions. Quick Tunnels are convenience hosting with no uptime guarantee, not a permanent deployment.
+
+## Public project site
+
+`https://spidey889.github.io/keep-context/` is a static product/setup page from `site/`. Plain HTML/CSS and a local SVG require no build, browser script, tracking or external fonts. It contains illustrative examples and public documentation links, never owner notes, credentials or the owner's live MCP endpoint. GitHub Pages does not run the MCP server; users configure their own server/account.
+
+Public examples, demo notes and test fixtures use fictional gardening and travel topics. Demo IDs are `demo-garden` and `demo-trip`; the demo reads no Google account. Keep examples independent of the owner's personal projects.
+
+`.github/workflows/pages.yml` deploys only `site/` on `main` changes to that folder/workflow or a manual dispatch. Actions are pinned to immutable commits; Pages write/OIDC permissions are limited to the deployment job. Server CI remains separate. Update README/site instructions together when setup behavior changes.

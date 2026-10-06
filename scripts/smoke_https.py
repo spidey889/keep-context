@@ -122,8 +122,8 @@ def main():
                             await session.initialize()
                             assert len((await session.list_tools()).tools) == 5
                             cases = [
-                                ("search", {"query": "Cap Context"}),
-                                ("fetch", {"id": "demo-vlc"}),
+                                ("search", {"query": "Garden plan"}),
+                                ("fetch", {"id": "demo-trip"}),
                                 ("list_recent_notes", {}),
                                 ("list_labels", {}),
                                 ("find_tasks", {}),
@@ -134,7 +134,7 @@ def main():
                                 if name == "search":
                                     assert result.structuredContent["total"] == 1
                                 if name == "fetch":
-                                    assert "- [x] Build VLC" in result.structuredContent["text"]
+                                    assert "- [x] Pack a bag" in result.structuredContent["text"]
                 print(
                     "PASS: public HTTPS, denied anonymous access, confidential DCR, consent, "
                     "PKCE, official MCP initialization and all five tools (demo data)."

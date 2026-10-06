@@ -1,0 +1,4 @@
+# Reviewed false positives: explicitly fake test credentials from the initial
+# commit. Exact historical fingerprints do not suppress future source findings.
+8b215250dfd6cec6a55e6d2744ac1f48f0de9a79:tests/test_credentials.py:generic-api-key:48
+8b215250dfd6cec6a55e6d2744ac1f48f0de9a79:tests/test_backend.py:generic-api-key:47

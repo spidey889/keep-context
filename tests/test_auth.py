@@ -101,7 +101,7 @@ def test_discovery_and_denied_private_access(client):
     assert (
         response.status_code == 401 and "resource_metadata" in response.headers["www-authenticate"]
     )
-    assert "Cap Context" not in response.text
+    assert "Garden plan" not in response.text
     assert http.get("/health", headers={"host": "evil.example"}).status_code == 400
 
 
