@@ -1,5 +1,11 @@
 # Changelog
 
+## Authentication follow-up — 2026-10-06
+
+- A real user's first cookie exchange was rejected by Google; the generic error hid the reason, so no account access has yet been verified. Show only an allowlist of safe Google error codes with actionable instructions, preserving suppression of raw responses and secrets.
+- Catch incorrectly copied cookie values before network access and document that browser cookies expire quickly and are single-use. Added a keyboard path to Application and clarified expanding Cookies for users unfamiliar with DevTools.
+- Verified all 56 tests on Windows/Python 3.14, including nine new authentication failure/input cases, with passing lint and formatting checks. Actual Google access remains unverified pending the user's fresh-cookie retry.
+
 ## 0.1.0 — 2026-10-06
 
 - Built the consumer-account Keep MVP on gkeepapi/gpsoauth after comparing official APIs and existing MCP servers. The official enterprise API cannot provide the intended normal consumer OAuth flow.

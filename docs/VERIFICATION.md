@@ -6,7 +6,7 @@ Single-owner consumer Google Keep reader with the official MCP Python SDK. Five 
 
 ## Verified
 
-The full local suite passes: **47 tests on Windows with Python 3.11 and Python 3.14**. Lint, formatting and wheel/source-distribution builds pass.
+The initial release passed **47 tests on Windows with Python 3.11 and Python 3.14**, plus lint, formatting and wheel/source-distribution builds. The authentication follow-up passes the full **56-test suite on Windows with Python 3.14**, lint and formatting. Its nine added cases cover incorrectly copied cookies before network access, recognized error codes, and suppression of upstream secrets/exceptions.
 
 - Real `gkeepapi` hydration/conversion using mocked Google wire responses: plain notes, labels, checklist order/hierarchy, checked state, empty lists and repeat synchronization. Assertions inspect outgoing requests and prove no note/label mutation payload is sent.
 - Query behavior: title/body/checklist and Unicode matching, all-keyword semantics, ranking, pagination, excerpts, archive/label filters, excluded trash, complete retrieval and task heuristics/checked-item omission.
@@ -21,7 +21,7 @@ The initial HTTPS probe failed before the tunnel was reachable. Startup was corr
 
 ## Remaining manual verification
 
-No Google Keep credentials were present in the environment, Keep Context vault entry, or the existing Keep MCP vault entry. No real Google account was read and no actual ChatGPT plugin was installed. **Mocked Google responses, official MCP client tests and a real HTTPS tunnel do not prove live Google authentication or ChatGPT account availability.**
+No Google Keep credentials were present during initial verification. The user's subsequent manual EmbeddedSetup attempt reached Google's token exchange, which Google rejected; the original generic error did not preserve a safe reason. The updated setup is ready for a fresh-cookie retry and will show recognized safe error codes. No real Google account has been read and no actual ChatGPT plugin has been installed. **Mocked Google responses, official MCP client tests and a real HTTPS tunnel do not prove live Google authentication or ChatGPT account availability.**
 
 The smallest remaining step is local account setup:
 

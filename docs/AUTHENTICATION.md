@@ -6,14 +6,21 @@ Run `uv run keep-context connect` in an interactive terminal. Secrets are hidden
 
 1. Enter your Google email.
 2. Manually visit <https://accounts.google.com/EmbeddedSetup> in your browser and sign in. Complete Google's consent/challenges if requested. This program does not open or automate your browser.
-3. Open browser DevTools. In Brave/Chrome/Edge use **Application → Storage → Cookies → https://accounts.google.com**. In Firefox/Zen use **Storage → Cookies**. Copy the value of the **`oauth_token`** cookie. A page that keeps loading can be normal.
-4. Paste that value into the terminal's hidden prompt. The program exchanges it with Google; the temporary cookie is never saved or printed.
+3. Open browser DevTools. In Brave/Chrome/Edge use **Application → Storage → Cookies → https://accounts.google.com**. In Firefox/Zen use **Storage → Cookies**. Expand the arrow beside Cookies and select the Google domain. If Application is hidden, focus DevTools, press **Ctrl+Shift+P**, type **Show Application**, and press Enter. Copy only the complete **Value** of the **`oauth_token`** cookie, starting with `oauth2_` followed by a number and `/`. A page that keeps loading after consent can be normal.
+4. Paste that value promptly into the terminal's hidden prompt and press Enter. **This cookie expires quickly and is single-use:** after a failed attempt, sign in again to obtain a fresh cookie rather than reusing the old one. Prepare the terminal before doing the browser step. The program checks for incorrectly copied values, then exchanges the cookie with Google; the temporary cookie is never saved or printed. [Upstream token types](https://github.com/rukins/gpsoauth-java#types-of-tokens).
 5. Choose and confirm a **separate connection password**, at least 20 characters, ideally a long random password from your password manager. This is the password for the Keep Context authorization screen, not your Google password.
 6. The command verifies Google authentication and a read-only Keep sync, then saves the account in the native OS vault. Only a note count is printed. Run `uv run keep-context doctor` to recheck.
 
 If you already have a master token, use `uv run keep-context connect --master-token`; the token prompt is still hidden. The ordinary flow deliberately does not accept Google passwords or app passwords. Upstream discourages password login because it commonly fails modern Google challenges. [gkeepapi documentation](https://github.com/kiwiz/gkeepapi/blob/main/docs/index.rst), [gpsoauth's alternative flow](https://github.com/simon-weber/gpsoauth#alternative-flow).
 
-The consumer Google sign-in/token exchange is unofficial. Errors such as `BadAuthentication`, `NeedsBrowser` or `MissingDroidguard` can depend on Google/account policy. First obtain a fresh cookie while signed into the intended account. Complete any Google security challenge yourself and retry. If Google still rejects the exchange, there is no verified universal workaround; inspect [upstream gpsoauth issues](https://github.com/simon-weber/gpsoauth/issues). The command reports a safe error without printing Google's raw response or saving unsuccessful credentials. Do not disable two-factor authentication or send tokens to third-party token generators.
+The consumer Google sign-in/token exchange is unofficial. The command shows only recognized, safe error codes and never prints Google's raw response or unknown error text:
+
+- **BadAuthentication:** the cookie may be expired, already used, incompletely copied, or from a different account. Obtain a fresh cookie for the exact email entered in the terminal and paste it promptly. This code alone does not prove which cause applies; account policy or upstream changes can also reject the exchange.
+- **NeedsBrowser:** complete Google's security challenge yourself in the browser, then obtain a fresh cookie.
+- **MissingDroidguard:** Google requires device verification that this library cannot provide. There is no verified universal workaround. See [upstream discussion](https://github.com/simon-weber/gpsoauth/issues/81).
+- **Other rejection:** details are intentionally suppressed because arbitrary response fields can contain secrets.
+
+If a fresh, correctly copied cookie still fails, report only the displayed safe error message and inspect [upstream gpsoauth issues](https://github.com/simon-weber/gpsoauth/issues). Unsuccessful credentials are never saved. Do not disable two-factor authentication or send tokens to third-party token generators.
 
 ## Credential storage
 

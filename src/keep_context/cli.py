@@ -4,6 +4,7 @@ import argparse
 import getpass
 import json
 import os
+import re
 import secrets
 import sys
 from contextlib import ExitStack
@@ -27,6 +28,52 @@ def hidden(prompt: str) -> str:
     return getpass.getpass(prompt).strip()
 
 
+def exchange_google_token(email: str, cookie: str, android_id: str) -> str:
+    if (
+        not re.fullmatch(r"oauth2_\d+/\S+", cookie)
+        or len(cookie) > 8192
+        or any(character in cookie for character in "\"';")
+    ):
+        raise SetupError(
+            "Copy only the oauth_token cookie's complete Value, starting with oauth2_ followed "
+            "by a number and /. Do not copy its name, an entire row, or another cookie. "
+            "No credentials were saved."
+        )
+    try:
+        response = gpsoauth.exchange_token(email, cookie, android_id)
+    except Exception:
+        raise SetupError(
+            "Google token exchange failed. Retry with a fresh oauth_token cookie. "
+            "No credentials were saved."
+        ) from None
+    token = response.get("Token", "")
+    if token:
+        return token
+    # Only fixed, recognized codes are safe to show. Google's other response
+    # fields, unknown errors and exception messages can contain credentials/URLs.
+    hints = {
+        "BadAuthentication": (
+            "Google rejected token exchange (BadAuthentication). The cookie may be expired, "
+            "already used, incomplete, or from another account. Sign in again through "
+            "EmbeddedSetup and paste the fresh cookie promptly."
+        ),
+        "NeedsBrowser": (
+            "Google rejected token exchange (NeedsBrowser). Complete Google's security "
+            "check in your browser, then obtain a fresh EmbeddedSetup cookie."
+        ),
+        "MissingDroidguard": (
+            "Google rejected token exchange (MissingDroidguard). Google requires device "
+            "verification that this library cannot provide. See docs/AUTHENTICATION.md."
+        ),
+    }
+    code = response.get("Error")
+    hint = hints.get(code) if isinstance(code, str) else None
+    raise SetupError(
+        (hint or "Google rejected token exchange. See docs/AUTHENTICATION.md.")
+        + " No credentials were saved."
+    )
+
+
 def connect(use_master_token: bool = False) -> None:
     print(
         "Keep Context stores credentials in your OS vault and never asks for your Google password."
@@ -44,19 +91,9 @@ def connect(use_master_token: bool = False) -> None:
             "In DevTools > Application/Storage > Cookies > accounts.google.com, copy oauth_token."
         )
         print("A stuck loading screen can be normal. Paste only into the hidden prompt below.")
+        print("Use a fresh cookie promptly; it expires quickly and can be used only once.")
         oauth_token = hidden("oauth_token cookie (hidden): ")
-        try:
-            response = gpsoauth.exchange_token(email, oauth_token, android_id)
-            token = response.get("Token", "")
-        except Exception:
-            raise SetupError(
-                "Google token exchange failed. Retry with a fresh oauth_token cookie."
-            ) from None
-        if not token:
-            raise SetupError(
-                "Google rejected token exchange. See docs/AUTHENTICATION.md; "
-                "no credentials were saved."
-            )
+        token = exchange_google_token(email, oauth_token, android_id)
     password = hidden("Choose a separate ChatGPT connection password (20+ characters): ")
     if len(password) < 20 or len(password) > 1024:
         raise SetupError("Connection password must have 20 to 1024 characters.")

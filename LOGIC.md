@@ -10,7 +10,7 @@ Stdio uses the same five tools but trusts the local MCP client process. No OpenA
 
 ## Google access
 
-Local `connect` manually exchanges a hidden EmbeddedSetup `oauth_token` cookie through gpsoauth, asks for a separate owner connection password, verifies read sync, and stores credentials in a native OS vault. Existing master tokens can also be entered locally. Explicit environment secrets support headless deployments. Unknown/plaintext vault backends fail closed. Google master tokens never appear in MCP output.
+Local `connect` manually exchanges a hidden EmbeddedSetup `oauth_token` cookie through gpsoauth, asks for a separate owner connection password, verifies read sync, and stores credentials in a native OS vault. Cookie input must be only the complete `oauth2_NUMBER/...` value; malformed values fail before network access. Cookies are short-lived and single-use. Exchange failures expose only fixed messages for recognized `BadAuthentication`, `NeedsBrowser` and `MissingDroidguard` codes; other response fields, unknown errors and exception details stay suppressed. Existing master tokens can also be entered locally. Explicit environment secrets support headless deployments. Unknown/plaintext vault backends fail closed. Google master tokens never appear in MCP output.
 
 Backend sync is lazy and serialized by a thread lock. It initially downloads notes, then refreshes after 60 seconds. Notes exist only in RAM. Failure never returns the old cached snapshot. A failed sync discards the client so a later request can retry from a fresh connection. Upstream errors are replaced with safe actionable messages; upstream debug logging is disabled.
 
