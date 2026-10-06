@@ -1,5 +1,11 @@
 # Changelog
 
+## Live account verification — 2026-10-06
+
+- The owner completed setup and verified 13 Keep notes. A fresh doctor connection and a real public HTTPS OAuth/MCP check using the official MCP client independently passed against the connected account.
+- Verified all five tools, known-note search/full retrieval, invalid queries/missing notes, protected access and PKCE consent without printing note contents or secrets. Revoked the temporary check's MCP access and left the server running for ChatGPT linking.
+- Actual installation/use inside ChatGPT remains the only unverified client boundary; documentation now distinguishes that from verified live Google access.
+
 ## Resumable setup — 2026-10-06
 
 - The user's next cookie exchange succeeded, but a short connection password caused setup to exit before Keep verification or credential storage. That successful token was lost and could not be recovered from the exited process.

@@ -19,13 +19,19 @@ The resumable-setup fix passes the full **66-test suite on Windows with Python 3
 - **Actual public HTTPS smoke:** Cloudflare tunnel, confidential DCR client, owner consent, PKCE code exchange, denied anonymous MCP access, and official MCP client calling all five tools against demo notes. Run `uv run python scripts/smoke_https.py` with cloudflared on PATH to reproduce. Both processes are cleaned up afterward.
 - Package builds produce a wheel and source distribution. Lint and formatting checks pass. CI repeats tests/package checks on Windows and Linux, Python 3.11 and 3.14.
 
+## Live Google account verification — 2026-10-06
+
+The user completed local setup and verified **13 notes**. A fresh `doctor` connection independently confirmed that count. An official MCP client then passed a real public HTTPS check against the connected account: anonymous access rejected, DCR/owner consent/PKCE accepted, all five read tools callable, recently listed note fetched in full, search using a word from that note returned the same ID, label/task results structured correctly, and missing-note/invalid-query errors handled. Searches for the intended example topics also completed successfully; their result counts/content are not recorded here.
+
+The live check printed only status and the total note count. No note contents, identifiers, Google tokens, connection passwords or MCP tokens were printed or committed. Its temporary OAuth access was revoked afterward and rejected on reuse. The server stayed running for the user's ChatGPT connection.
+
 The initial HTTPS probe failed before the tunnel was reachable. Startup was corrected to wait for a registered tunnel connection and use HTTP/2; the subsequent full public smoke passed.
 
 ## Remaining manual verification
 
-No Google Keep credentials were present during initial verification. The user's first manual EmbeddedSetup exchange was rejected; a fresh-cookie retry succeeded. The original password validation then exited on a short password before Keep verification or credential storage, losing that token. Setup now retries passwords and resumes verified Google access from a separate native-vault checkpoint. No real Google account has yet been read and no actual ChatGPT plugin has been installed. **Mocked Google responses, official MCP client tests and a real HTTPS tunnel do not prove live Keep access or ChatGPT account availability.**
+Live Google read access and real HTTPS OAuth/MCP have now passed. The user's first attempts exposed cookie-expiry/copying friction and exit-on-short-password behavior; setup now provides safe diagnostics, retries passwords and resumes verified access from a separate native-vault checkpoint. **Actual installation and use inside the user's ChatGPT account remains unverified.** The official MCP client verifies the server transport, tools and real Google access, but cannot prove ChatGPT account/workspace feature availability or the final ChatGPT linking experience.
 
-The smallest remaining step is local account setup:
+For another developer's first setup:
 
 ```sh
 uv run keep-context connect
@@ -33,7 +39,7 @@ uv run keep-context doctor
 uv run keep-context serve --tunnel
 ```
 
-Complete the manual EmbeddedSetup sign-in/cookie step shown by `connect`. Add the printed `/mcp` URL to ChatGPT with OAuth/DCR and enter your separate connection password. Ask for a known note, read it, and check an unchecked item. This verifies the external Google and ChatGPT account boundaries without exposing credentials here.
+For the connected owner, only the ChatGPT step remains: add the running server's printed `/mcp` URL with OAuth/DCR and enter the separate connection password. Ask for a known note, read it, and inspect an unchecked item. Do not run `connect` again for an already verified account.
 
 Limitations: unofficial Google API/authentication may break or reject an account; one Google owner per server; keyword search and English prose task heuristics; no image/audio/drawing transcription or reminder retrieval; no write tools. Quick tunnel URLs change on restart. Stable HTTPS deployment preserves OAuth state and is preferable for everyday use.
 
