@@ -101,6 +101,60 @@ def tool(http, token, name, args):
     )
 
 
+def test_direct_chatgpt_listing_configuration_is_safe(pilot):
+    _, service, _ = pilot
+    for listing in (
+        "https://chatgpt.com/plugins/keep-context-example",
+        "https://chatgpt.com/settings/plugins-settings/plugin_example",
+    ):
+        configured = Pilot(BASE, service.store, chatgpt_url=listing)
+        with TestClient(configured.app(8000), base_url=BASE) as client:
+            assert client.get("/api/config").json()["chatgpt_url"] == listing
+    for invalid in (
+        "https://chatgpt.com.evil.test/plugins/a",
+        "https://user@chatgpt.com/plugins/a",
+        "https://chatgpt.com/plugins/a?token=fake-only",
+        "https://chatgpt.com/connector/oauth/a",
+        "http://chatgpt.com/plugins/a",
+        "javascript:alert(1)",
+    ):
+        with pytest.raises(SetupError):
+            Pilot(BASE, service.store, chatgpt_url=invalid)
+
+
+def test_ready_status_is_account_bound_and_uses_live_refresh_grants(pilot):
+    http, service, _ = pilot
+    connect(http, KEY_A, "alice@example.test")
+    connect(http, KEY_B, "bob@example.test")
+
+    def progress(key):
+        return http.get("/api/progress", headers=owner_headers(key)).json()
+
+    assert progress(KEY_A)["chatgpt_connected"] is False
+    info = register(http).json()
+    grant(http, info, KEY_A)
+    assert progress(KEY_A)["chatgpt_connected"] is True
+    assert progress(KEY_B)["chatgpt_connected"] is False
+    for access in service.oauth.access.values():
+        access.expires_at = time.time() - 1
+    assert progress(KEY_A)["chatgpt_connected"] is True
+    for refresh in service.oauth.refresh.values():
+        refresh.expires_at = time.time() - 1
+    assert progress(KEY_A)["chatgpt_connected"] is False
+    grant(http, info, KEY_A)
+    assert progress(KEY_A)["chatgpt_connected"] is True
+    # Reconnecting the same email rotates ownership. The old completed job
+    # must not report a connected account or leak its email to the old key.
+    rotated = "c" * 43
+    service.store.enroll(service.store.credentials(service.store.owner(KEY_B)), rotated)
+    stale = progress(KEY_B)
+    assert stale["status"] == "idle" and "email" not in stale
+    assert progress(rotated)["chatgpt_connected"] is False
+    assert http.post("/api/disconnect", headers=owner_headers(KEY_A), json={}).status_code == 200
+    assert progress(KEY_A)["status"] == "idle"
+    assert progress(rotated)["chatgpt_connected"] is False
+
+
 def test_accounts_are_isolated_through_actual_mcp_routes(pilot):
     http, service, _ = pilot
     connect(http, KEY_A, "alice@example.test")

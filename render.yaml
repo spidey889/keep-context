@@ -15,3 +15,6 @@ services:
         sync: false
       - key: KEEP_ENROLLMENT_CODE
         sync: false
+      # Set after a real ChatGPT listing is available; empty keeps guided preview setup.
+      - key: KEEP_CHATGPT_URL
+        value: ""

@@ -32,6 +32,23 @@ from .server import build_server, http_app
 EXTENSION_ID = "fmpbecffbmodgopadagphiaopjfnoppo"
 
 
+def chatgpt_install_url(value: str) -> str:
+    """Accept an operator-supplied listing, never invent a one-click install URL."""
+    if not value:
+        return ""
+    parsed = urlparse(value)
+    if (
+        parsed.scheme != "https"
+        or parsed.netloc != "chatgpt.com"
+        or parsed.query
+        or parsed.fragment
+        or not parsed.path.startswith(("/plugins/", "/apps/", "/settings/plugins-settings/"))
+        or "oauth" in parsed.path
+    ):
+        raise SetupError("Configure a valid ChatGPT plugin listing URL.")
+    return value
+
+
 class AccountBackends:
     def __init__(self, store: HostedStore, factory=KeepBackend):
         self.store, self.factory = store, factory
@@ -277,12 +294,14 @@ class Pilot:
         enrollment_code: str = "",
         open_enrollment=False,
         redirect_uris=(),
+        chatgpt_url="",
     ):
         if not re.fullmatch(r"[a-p]{32}", extension_id):
             raise SetupError("Configure a valid Chrome extension ID.")
         self.base, self.store, self.exchange = base, store, exchange
         self.extension_origin = "chrome-extension://" + extension_id
         self.enrollment_code, self.open_enrollment = enrollment_code, open_enrollment
+        self.chatgpt_url = chatgpt_install_url(chatgpt_url)
         self.backends = AccountBackends(store, factory)
         self.oauth = HostedOAuth(base, store, redirect_uris)
         self.attempts = deque(maxlen=12)
@@ -315,6 +334,7 @@ class Pilot:
                     "mcp_url": self.base + "/mcp",
                     "invitation_required": not self.open_enrollment,
                     "extension_id": self.extension_origin.split("//")[1],
+                    "chatgpt_url": self.chatgpt_url,
                 }
             elif route == "/api/connect":
                 result = await self.connect(payload)
@@ -325,16 +345,26 @@ class Pilot:
                     result = {
                         "status": "connected",
                         "email": self.store.credentials(identity).email,
+                        # An expired access token can still be a healthy connection
+                        # when its account-bound refresh grant remains usable.
+                        "chatgpt_connected": any(
+                            token.subject == identity and (token.expires_at or 0) > time.time()
+                            for mapping in (self.oauth.access, self.oauth.refresh)
+                            for token in mapping.values()
+                        ),
                     }
                 else:
                     result = self.jobs.get(
                         digest(device_key),
                         {"status": "idle", "error": "Start a fresh Google connection."},
                     )
+                    # A completed job is not proof of ownership after disconnect
+                    # or management-key rotation. Only the registry can prove it.
+                    if result.get("status") == "connected":
+                        result = {"status": "idle", "error": "Start a fresh Google connection."}
             else:
-                identity = self.store.owner(
-                    request.headers.get("authorization", "").removeprefix("Bearer ")
-                )
+                device_key = request.headers.get("authorization", "").removeprefix("Bearer ")
+                identity = self.store.owner(device_key)
                 if not identity:
                     return JSONResponse(
                         {"error": "Open the extension and connect Google Keep."},
@@ -348,6 +378,7 @@ class Pilot:
                     }
                 elif route == "/api/disconnect":
                     self.store.delete(identity)
+                    self.jobs.pop(digest(device_key), None)
                     for mapping in (self.oauth.codes, self.oauth.access, self.oauth.refresh):
                         for key in list(mapping):
                             if mapping[key].subject == identity:
@@ -456,9 +487,7 @@ class Pilot:
                     "Contact the host."
                 )
             elif "cookie" in message or "token exchange" in message:
-                message = (
-                    "Google couldn't finish sign-in. Click Connect Google Keep to sign in again."
-                )
+                message = "Google couldn't finish sign-in. Sign in with Google again."
             self.jobs[job_key] = {
                 "status": "failed",
                 "error": message,
@@ -513,6 +542,7 @@ def main():
                 extension_id=os.environ.get("KEEP_EXTENSION_ID", EXTENSION_ID),
                 enrollment_code=os.environ.get("KEEP_ENROLLMENT_CODE", ""),
                 open_enrollment=args.open_enrollment,
+                chatgpt_url=os.environ.get("KEEP_CHATGPT_URL", ""),
             )
             uvicorn.run(
                 pilot.app(args.port),

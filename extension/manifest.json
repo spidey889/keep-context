@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Keep Context",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "minimum_chrome_version": "120",
   "description": "Connect your Google Keep notes to ChatGPT without copying tokens.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmG7MFr/gPhsLkpoXaUj217VvOQ4xFOQGvZ0K428PFdh0PTvoZDkUBiHWn0cS3ZCTCDGmQy/NNMNe9D7P/r8G5m4jLJMBBcgVSxmJWeMaFEm+PyDlbrfSLYX3aQvMRlfBzAvLUy1eB1xTKeKi6SovNTWoRg/FDSXmi7TqkG5BR4lWLLUmXa1TDl9mJBSLnIwWsu4m3p1csX+pnwcITA9L+Ste7PZYMG5p5rz0UAbd//BCMHmZnK2+NIuTiSdgAIoWM6/tuDd6IhuRi0qQd6IgZour2edyuYlQ+c9F+Bx0zHLrzEPK2ur2izu+tCkNEB3BP48WGyABB+BAOULGvOCRgQIDAQAB",
@@ -12,6 +12,6 @@
   "content_scripts": [{"matches": ["http://127.0.0.1:8800/connect*"], "js": ["consent.js"], "run_at": "document_idle", "all_frames": false}],
   "background": {"service_worker": "worker.js", "type": "module"},
   "icons": {"16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png"},
-  "action": {"default_popup": "popup.html", "default_title": "Keep Context", "default_icon": {"16": "icons/16.png", "32": "icons/32.png"}},
+  "action": {"default_title": "Keep Context", "default_icon": {"16": "icons/16.png", "32": "icons/32.png"}},
   "content_security_policy": {"extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'"}
 }

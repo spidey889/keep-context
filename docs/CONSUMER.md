@@ -6,19 +6,23 @@ This is a developer preview, **not yet listed in Chrome's or ChatGPT's directory
 
 ## Connect your notes
 
-1. Install the extension from a trusted host. For this preview, extract the ZIP, open `chrome://extensions` or `brave://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder. Pin Keep Context to the toolbar.
-2. Open Keep Context. Enter your Google email, review the service hostname and credential notice, and choose **Connect Google Keep**. Enter an invitation code if your host requires one. Approve the one-time permission.
-3. Complete Google's sign-in in the new tab. The extension handles the temporary token for this connection. If it does not finish automatically, open the extension and click **Finish connection**. A loading page after “I agree” can be normal; it is not proof of failure. You never copy a token or paste one into ChatGPT.
-4. After **Keep is connected**, click **Connect ChatGPT**. Until directory publication, add a custom MCP server once: copy its URL with the extension, name it Keep Context in ChatGPT's form, and keep OAuth/DCR selected. Create/install the plugin and choose Connect.
-5. On the final connection page, check the Google account and callback hostname, then click **Allow ChatGPT** directly on the page. No second password or toolbar handoff. The extension popup provides the same approval as a fallback. Then ask about your notes.
+1. **Install Keep Context.** The setup page opens automatically. Enter your Google email, read the connection notice and choose **Agree and sign in with Google**. Allow the one-time browser permission. Enter an invitation code only if your host requires one.
+2. **Sign in with Google.** Complete Google's sign-in in the tab we opened. Keep Context detects completion and brings you back automatically, even if Google keeps loading after “I agree.” No Finish button, token copying or popup handoff.
+3. **Connect ChatGPT.** Click **Connect ChatGPT**, install/connect the plugin, then choose **Allow ChatGPT** on the connection page. When you see **Your notes are ready**, open a new ChatGPT chat, select Keep Context and ask about your notes.
 
-Closing the popup does not lose a submitted connection. Reopen it to see progress. A failed Google sign-in needs a fresh sign-in. ChatGPT setup has a 30-minute approval window; an ended request offers **Return to ChatGPT**, then a fresh Connect without repeating Google setup. If the approval response was lost, choose **Finish ChatGPT connection**. The same live code is delivered again without creating another grant.
+The host can configure a real ChatGPT listing link so the third step opens it directly. This unpublished preview still needs the one-time custom-server form: the setup page explains it and has **Copy address and open ChatGPT**. Leave OAuth/Dynamic Client Registration selected. A listing link is the plugin's own page in ChatGPT, not the MCP server address or a Chrome publisher account.
 
-For an abandoned Google tab, choose **Start over**. An expired ten-minute window releases Google permission and returns to setup, including when the service is offline. If the service restarts before verifying an account, the popup offers fresh sign-in rather than waiting indefinitely. Already verified accounts recover from encrypted state.
+### Install this unpublished preview
 
-If the browser restarts or the extension updates, temporary Google sign-in starts fresh and its permission is cleared. Your saved browser key remains, so a verified Keep account reconnects without another Google sign-in. Failed setup before opening Google also releases the one-time permission.
+Extract the extension ZIP from your trusted host. Open `chrome://extensions` or `brave://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder. Setup opens on first installation. No pinning is required. Clicking Keep Context in the extensions menu opens or reuses its setup page. Store publication will replace this developer installation step; it has not happened yet.
 
-**Disconnect Keep** deletes the account from the current hosted registry, clears its reader and revokes MCP grants. It does not revoke Google's device session: revoke that separately in Google account security if needed. Removing the extension alone does not delete the hosted account. Losing its local key requires a fresh Google connection; reconnecting the same email revokes the previous browser/MCP access.
+### If you get interrupted
+
+Close the setup tab whenever you need; reopening Keep Context restores submitted progress. Keep the Google tab open until sign-in is accepted. **Go to Google sign-in** returns to it. **Start over** abandons only an unfinished sign-in, preserving a server-accepted job or saved account. An expired ten-minute window releases Google permission even when the service is offline. A server restart before verification offers fresh sign-in rather than indefinite waiting.
+
+ChatGPT approval has a separate 30-minute window. An ended request offers **Return to ChatGPT**, then a fresh Connect without another Google sign-in. If the approval reply was lost, **Finish ChatGPT connection** safely delivers the same live code again. Updates/profile restart clear temporary Google permissions; verified accounts recover with the saved browser key.
+
+**Manage connection → Disconnect Keep** deletes the hosted account, clears its reader and revokes MCP grants. It does not revoke Google's device session: revoke that separately in Google account security if needed. Removing the extension alone does not delete the hosted account. Losing its local key requires a fresh Google connection; reconnecting the same email revokes the previous browser/MCP access.
 
 ## Privacy
 
@@ -33,7 +37,7 @@ If the browser restarts or the extension updates, temporary Google sign-in start
 The default invited pilot supports 50 accounts, 20 cached readers, one Google enrollment at a time and 12 enrollment attempts/minute globally. SDK clients/tokens/pending flows are bounded. Run one process; this is not a horizontally scaled public service.
 
 1. Deploy the Dockerfile behind stable HTTPS with persistent `/data`, writable by UID 10001. It runs as a non-root user, binds on `PORT` (default 8800), and uses `/health` for readiness.
-2. Supply **runtime secrets**: `KEEP_HOSTED_KEY` (generated 32-byte Fernet key, URL-safe base64), and a high-entropy `KEEP_ENROLLMENT_CODE`. Supply non-secret `KEEP_PUBLIC_URL` without `/mcp`; Render can use its `RENDER_EXTERNAL_URL` automatically. Never use secret build arguments. [Render runtime secrets](https://render.com/docs/docker-secrets).
+2. Supply **runtime secrets**: `KEEP_HOSTED_KEY` (generated 32-byte Fernet key, URL-safe base64), and a high-entropy `KEEP_ENROLLMENT_CODE`. Supply non-secret `KEEP_PUBLIC_URL` without `/mcp`; optionally set `KEEP_CHATGPT_URL` to your real published or workspace ChatGPT listing link (HTTPS on `chatgpt.com`, no query or fragment). Leave it unset until a listing exists; the preview then shows the guided form. Set `KEEP_EXTENSION_ID` to your actual browser extension ID. The URL is validated at startup and again in the extension. Render can use its `RENDER_EXTERNAL_URL` automatically. Never use secret build arguments. [Render runtime secrets](https://render.com/docs/docker-secrets).
 3. Keep key, URL and volume stable across deploys. An OS lock rejects a second CLI writer. Back up encrypted state and key separately. Do not rotate the key or hostname without an account migration. Do not import the operator's local account into the shared pilot.
 4. Build the extension for this exact host:
 
@@ -58,7 +62,7 @@ uv run keep-context-hosted --public-url http://127.0.0.1:8800
 
 ## Before public release
 
-- Verify actual Google sign-in, permission removal, popup recovery and ChatGPT linking in Chrome/Brave. Browser automation needs the owner's explicit authorization; installation and extension popups may still require manual checks when the selected tool blocks internal browser pages.
+- Verify actual Google sign-in, permission removal, automatic return/setup-tab recovery and ChatGPT linking in Chrome/Brave. Browser automation needs the owner's explicit authorization; installation and sign-in may still require manual checks when the selected tool blocks internal browser pages.
 - Verify persistent hosting, disk ownership, TLS, backups, deletion/retention and operational abuse limits for the pilot size.
 - Publish the extension through Chrome review, and package/test/submit the ChatGPT plugin for review. Directory approval is not guaranteed. Public ChatGPT plugins require a stable HTTPS MCP endpoint; Secure MCP Tunnel is not a public-distribution substitute. [OpenAI submission](https://developers.openai.com/plugins/deploy/submission), [MCP hosting](https://developers.openai.com/plugins/build/mcp-server).
 - Replace the custom-server form with installation of the approved plugin when it exists. Never claim store availability before approval.

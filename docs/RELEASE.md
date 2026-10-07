@@ -1,6 +1,6 @@
 # Taking the preview to ordinary users
 
-The intended flow is **install extension → Google sign-in → install/connect Keep Context in ChatGPT**. Google consent and ChatGPT approval remain explicit. End users do not run a server or handle tokens. Source and automated checks are ready for invited testing; actual browser verification, stable hosting and directory publication remain open.
+The intended flow is **install extension → Google sign-in → install/connect Keep Context in ChatGPT**. Google consent and ChatGPT approval remain explicit. End users do not run a server or handle tokens. Source and automated checks are ready for invited testing; version 0.2.0's real Google/ChatGPT connection was manually verified. Version 0.3.0 removes popup/Finish handoffs, but its fresh sign-in/automatic return still needs a manual browser check. Stable hosting and directory publication remain open.
 
 ## Build the two downloads
 
@@ -17,13 +17,17 @@ For an invited ChatGPT test, the user can try **Plugins → Add → Upload plugi
 
 ## Before accepting ordinary users
 
-1. Manually complete extension sign-in in Chrome/Brave, including popup closure, Google permission removal, rejected sign-in, ChatGPT approval and disconnect. Do not mark this gate passed from simulated browser APIs or previously saved Google credentials.
+1. Manually complete extension sign-in in Chrome/Brave, including automatic first-install setup, setup-tab closure, missed-event recovery, automatic return, Google permission removal, rejected sign-in, ChatGPT approval and disconnect. Do not mark this gate passed from simulated browser APIs or previously saved Google credentials.
 2. Deploy the [hosted pilot](CONSUMER.md#operator-setup) behind stable HTTPS. Confirm the real provider volume is writable and survives redeploy, with the same encryption key/origin. State locking and Docker volume recovery pass in CI; that does not verify a Render account or its disk. Decide which operator owns support, backup retention and deletion requests before collecting accounts.
 3. Publish the host's privacy policy and terms with that operator's real identity and providers. The project's [privacy explanation](https://spidey889.github.io/keep-context/privacy.html) describes stock behavior; it cannot promise a third-party host's retention. Keep the broad Google credential disclosure before connection. [Chrome user data requirements](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq).
 4. Register the Chrome publisher, use the included icon, supply actual screenshots and accurate data/permission declarations, upload the host-specific extension, and request review. Confirm the assigned extension ID and configure `KEEP_EXTENSION_ID` if it differs. Approval of this unofficial consumer authentication approach is unverified. [Chrome publication](https://developer.chrome.com/docs/webstore/publish).
 5. Use a verified OpenAI publisher to upload the plugin draft. Complete publisher/terms/assets and actual positive/negative review cases in the dashboard, resolve automated findings and request review. The generated ZIP deliberately does not invent publisher identity, terms, screenshots or passing review cases. Publish only after approval.
 
 No billable service or store submission is created automatically by this repository. The owner has confirmed fresh Google sign-in, inline approval and note listing in real Brave/ChatGPT. Stable hosting and store submissions remain deferred; browser permission removal and plugin ZIP installation still need manual verification.
+
+## Direct ChatGPT install button
+
+A Chrome Web Store developer account lets you publish the browser extension; it does not create a ChatGPT listing. After the plugin is published or shared with its intended workspace, copy its actual ChatGPT listing/settings URL and set the server's non-secret `KEEP_CHATGPT_URL` environment variable. The extension discovers it and opens it from **Connect ChatGPT**, with no MCP address entry. Keep the existing server origin and encrypted state unchanged when enabling the link. Do not guess a URL, use an OAuth callback, or present a private settings page as a publicly available listing. Without a listing, the preview keeps its guided custom-server fallback. [OpenAI publishing requirements](https://developers.openai.com/plugins/deploy/submission).
 
 ## Prepared icons
 
@@ -50,7 +54,7 @@ Suggested description: Search saved ideas, read full notes, browse recent notes 
 | --- | --- |
 | `storage` | Keep a random local management key and temporary sign-in progress, restricted to extension contexts. No Chrome Sync or saved Google tokens. |
 | `activeTab` | Inspect the exact active Keep Context consent tab when the user opens the extension, then return to the validated ChatGPT callback. |
-| `alarms` | Release expired sign-in permission and recover progress when the popup closes. |
+| `alarms` | Release expired sign-in permission and recover submitted progress when the setup tab closes. |
 | Configured service origin | Send connection/approval/disconnect requests to that one HTTPS host. |
 | Optional `cookies` + `accounts.google.com` | Read the fresh EmbeddedSetup connection cookie during an explicitly approved sign-in; remove permission afterward. Chrome's API permission covers additional cookie names even though the implementation reads only this one. |
 

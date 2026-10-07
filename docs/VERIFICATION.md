@@ -1,5 +1,15 @@
 # Verification report — 2026-10-06
 
+## Guided setup 0.3.0 — 2026-10-07
+
+All **95 Python tests** and **27 Node tests** pass on Windows/Python 3.14. Coverage adds first-install setup/update behavior, safe tab reuse and automatic return, missed cookie events, lost accepted POST replies, explicit sign-in/double-click handling, real listing validation, account-bound Ready status, refresh-grant expiry and stale job cleanup after disconnect/key rotation. The actual TCP extension bridge completes simulated Google sign-in through polling, recovers a lost approval reply, exchanges PKCE and calls all five MCP tools. No browser is launched by these tests.
+
+An isolated local TCP server using the already saved real Keep credentials passed all five tools, a known-note search, full retrieval, safe missing-note handling, OAuth/PKCE, Ready before/after token issuance and disconnect/revocation. The temporary encrypted state was removed; the original user registry remained byte-for-byte unchanged. This proves current Google read access and server behavior, not fresh Google authentication or the new browser UI. The newest real note was empty; the verifier now selects a searchable note instead of assuming every note contains words.
+
+Lint/formatting, wheel/source builds, twelve-file extension packaging and HTML/CSS/local links pass. Browser automation remains stopped at the owner's request. Automatic first-install opening, fresh Google sign-in/return and actual permission removal in 0.3.0 still need manual checks. Previous 0.2.0 manual Brave/ChatGPT proof remains below.
+
+The previous temporary server/tunnel was not running at this check. Its saved account/grants were preserved; no public HTTPS availability, new hostname migration, stable hosting or store publication is claimed. The prepared Desktop archive retains that development origin and is not a permanent store release.
+
 ## Built
 
 Consumer Google Keep reader with the official MCP Python SDK. Five tools: title/body/checklist search, full-note fetch, recent notes, configured labels, and likely tasks. Supports local stdio and OAuth-protected, stateless Streamable HTTP with JSON responses. Local mode includes hidden-input Google setup, native OS-vault storage, encrypted OAuth persistence, owner consent and one-command HTTPS tunnel startup. A separately opted-in extension/hosted preview adds passwordless onboarding and account isolation.

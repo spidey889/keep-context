@@ -43,6 +43,9 @@ def test_archive_has_exact_origin_and_no_development_material(tmp_path):
         assert manifest["host_permissions"] == ["https://keep.example.test/*"]
         assert manifest["optional_host_permissions"] == ["https://accounts.google.com/*"]
         assert "cookies" not in manifest["permissions"]
+        # The icon opens a persistent setup tab; a dismissible popup would
+        # reintroduce the sign-in handoff we are removing.
+        assert "default_popup" not in manifest["action"]
         assert manifest["content_scripts"] == [
             {
                 "matches": ["https://keep.example.test/connect*"],

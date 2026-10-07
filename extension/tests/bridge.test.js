@@ -2,7 +2,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 import vm from "node:vm";
-import {Bridge, allowedCallback, connectionTicket, serverOrigin} from "../bridge.js";
+import {Bridge, allowedCallback, chatgptInstallUrl, connectionTicket, serverOrigin} from "../bridge.js";
 
 const SERVER = "https://keep.example.test";
 const TICKET = "t".repeat(43);
@@ -13,17 +13,20 @@ function storage() {
     async set(v) {Object.assign(values, v);}, async remove(k) {delete values[k];}};
 }
 function setup() {
-  const requests = [], updates = [];
+  const requests = [], updates = [], created = [], tabs = new Map();
+  let nextTab = 10;
   const local = storage(), session = storage();
   let cookie = null, allowed = true, progress = {status: "idle"};
   let active = {id: 4, url: SERVER + "/connect?ticket=" + TICKET};
+  tabs.set(active.id, active);
   let pending = {status: "pending", email: "alice@example.test", client: "ChatGPT",
     callback: "https://chatgpt.com/connector_platform_oauth_redirect"};
   const chrome = {
     storage: {local, session}, cookies: {async get() {return cookie;}},
     permissions: {async contains() {return allowed;}, async remove() {allowed = false;}},
-    tabs: {async create() {return {id: 2};}, async get() {return {url: "https://accounts.google.com/v3/signin"};},
-      async query() {return [active];}, async update(id, v) {updates.push([id, v]);}},
+    tabs: {async create(values) {const tab = {id: nextTab++, ...values}; tabs.set(tab.id, tab); created.push(tab); return tab;},
+      async get(id) {return tabs.get(id);}, async query() {return [active];},
+      async update(id, v) {updates.push([id, v]); tabs.set(id, {...tabs.get(id), ...v});}},
     alarms: {async create() {}, async clear() {}},
     runtime: {getURL: path => "chrome-extension://fake-extension-id/" + path},
   };
@@ -33,11 +36,13 @@ function setup() {
     let data = {};
     if (path === "/api/config") data = {mcp_url: SERVER + "/mcp", invitation_required: false};
     if (path === "/api/progress") data = progress;
+    if (path === "/api/connect") {progress = {status: "connecting"}; data = progress;}
     if (path === "/api/pending") data = pending;
     if (path === "/api/approve") data = {redirect_url: "https://chatgpt.com/connector_platform_oauth_redirect?code=fake-code&state=fake"};
     return {ok: true, async json() {return data;}};
   };
-  return {bridge: new Bridge(chrome, fetch, SERVER), chrome, requests, updates,
+  return {bridge: new Bridge(chrome, fetch, SERVER), chrome, requests, updates, created,
+    setTab: (id, url) => tabs.set(id, {id, url}),
     setCookie: value => {cookie = value ? {value} : null;},
     setProgress: value => {progress = value;}, setActive: value => {active = value;},
     setPending: value => {pending = value;}};
@@ -60,6 +65,96 @@ test("ended ChatGPT links keep Google connected and provide recovery", async () 
   s.setPending({status: "completed"});
   assert.equal((await s.bridge.status()).phase, "done");
   assert.equal(s.requests.some(r => r.url.endsWith("/api/connect")), false);
+});
+
+test("opening setup reuses only our own tab and preserves a ChatGPT-started connection", async () => {
+  const s = setup();
+  await s.bridge.openSetup();
+  const id = s.chrome.storage.session.values.setupTabId;
+  assert.equal(s.created.length, 1);
+  await s.bridge.openSetup();
+  assert.equal(s.created.length, 1);
+  assert.deepEqual(s.updates.at(-1), [id, {active: true}]);
+  s.setTab(id, "https://unrelated.example.test/");
+  await s.bridge.openSetup({id: 4, url: SERVER + "/connect?ticket=" + TICKET});
+  assert.equal(s.created.length, 2);
+  assert.deepEqual(s.chrome.storage.session.values.chatgptFlow, {tabId: 4, ticket: TICKET});
+  assert.equal(s.updates.filter(([tab]) => tab === id).length, 1);
+});
+
+test("sign-in automatically finishes when its cookie event was missed and returns once", async () => {
+  const s = setup();
+  await s.bridge.openSetup();
+  const app = s.chrome.storage.session.values.setupTabId;
+  await s.bridge.begin({email: "alice@example.test", consent: true});
+  assert.equal((await s.bridge.status()).phase, "google");
+  s.setCookie("oauth2_4/fresh-only-fake");
+  assert.equal((await s.bridge.status()).phase, "working");
+  assert.deepEqual(s.updates.at(-1), [app, {active: true}]);
+  assert.equal(s.chrome.storage.session.values.login.submitted, true);
+  assert.equal(await s.chrome.permissions.contains(), false);
+  await s.bridge.status(); await s.bridge.status();
+  assert.equal(s.requests.filter(r => r.url.endsWith("/api/connect")).length, 1);
+  assert.equal(s.updates.length, 1);
+  assert.equal(JSON.stringify(s.chrome.storage).includes("fresh-only-fake"), false);
+});
+
+test("automatic return prefers the original consent page without approving it", async () => {
+  const s = setup();
+  await s.bridge.openSetup({id: 4, url: SERVER + "/connect?ticket=" + TICKET});
+  await s.bridge.begin({email: "alice@example.test", consent: true});
+  s.setCookie("oauth2_4/fresh-fake");
+  await s.bridge.status();
+  assert.deepEqual(s.updates.at(-1), [4, {active: true}]);
+  assert.equal(s.requests.some(r => r.url.endsWith("/api/approve")), false);
+  s.setProgress({status: "connected", email: "alice@example.test"});
+  assert.equal((await s.bridge.status()).phase, "approve");
+});
+
+test("cookie events recover a lost accepted response without exchanging twice", async () => {
+  const s = setup();
+  await s.bridge.openSetup();
+  await s.bridge.begin({email: "alice@example.test", consent: true});
+  s.setCookie("oauth2_4/fresh-fake");
+  const fetch = s.bridge.fetch;
+  s.bridge.fetch = async (...args) => {
+    const reply = await fetch(...args);
+    if (String(args[0]).endsWith("/api/connect")) throw new Error("Lost accepted response");
+    return reply;
+  };
+  const change = {removed: false, cookie: {name: "oauth_token", domain: "accounts.google.com"}};
+  await s.bridge.changed(change);
+  await s.bridge.changed(change);
+  assert.equal(s.requests.filter(r => r.url.endsWith("/api/connect")).length, 1);
+  assert.equal(s.chrome.storage.session.values.login.submitted, true);
+  assert.equal(s.updates.length, 1);
+  assert.equal(await s.chrome.permissions.contains(), false);
+});
+
+test("return never focuses repurposed setup/consent tabs", async () => {
+  const s = setup();
+  await s.bridge.openSetup({id: 4, url: SERVER + "/connect?ticket=" + TICKET});
+  const id = s.chrome.storage.session.values.setupTabId;
+  await s.bridge.begin({email: "alice@example.test", consent: true});
+  s.setTab(id, "https://unrelated.example.test/"); s.setTab(4, "https://unrelated.example.test/");
+  s.setCookie("oauth2_4/fresh-fake");
+  await s.bridge.status();
+  assert.equal(s.updates.length, 0);
+});
+
+test("installed ChatGPT links are validated and only an issued grant shows ready", async () => {
+  const listing = "https://chatgpt.com/plugins/keep-context-example";
+  assert.equal(chatgptInstallUrl(listing), listing);
+  for (const url of ["https://chatgpt.com.evil.test/plugins/a", "javascript:alert(1)",
+    "https://chatgpt.com/plugins/a?token=fake", "https://chatgpt.com/connector/oauth/a",
+    "https://user@chatgpt.com/plugins/a", "http://chatgpt.com/plugins/a"]) assert.throws(() => chatgptInstallUrl(url));
+  const s = setup();
+  s.setActive({id: 99, url: "https://unrelated.example.test/"});
+  await s.chrome.storage.local.set({deviceKey: "k".repeat(43)});
+  s.setProgress({status: "connected", email: "alice@example.test", chatgpt_connected: false});
+  assert.equal((await s.bridge.status()).phase, "connected");
+  s.setProgress({status: "connected", email: "alice@example.test", chatgpt_connected: true});
+  assert.equal((await s.bridge.status()).phase, "done");
 });
 
 test("setup in a separate tab retains the exact ChatGPT flow and rejects a changed tab", async () => {
@@ -269,6 +364,7 @@ test("real worker lifecycle wiring cleans offline grants before popup recovery",
   s.chrome.runtime = {id: "fake-extension-id", getURL: path => "chrome-extension://fake-extension-id/" + path,
     onStartup: event(), onInstalled: event(), onMessage: event()};
   s.chrome.permissions.onAdded = event();
+  s.chrome.action = {onClicked: event()};
   s.chrome.alarms.onAlarm = event();
   s.chrome.cookies.onChanged = event();
   s.chrome.storage.local.setAccessLevel = s.chrome.storage.session.setAccessLevel = async () => {};
@@ -297,6 +393,16 @@ test("real worker lifecycle wiring cleans offline grants before popup recovery",
     assert.equal(s.requests.some(r => r.url.endsWith("/api/connect")), false);
     // An extension update/reload must clean the same stale permission state.
     assert.equal(s.chrome.runtime.onInstalled.listeners.length, 1);
+    s.chrome.runtime.onInstalled.listeners[0]({reason: "update"});
+    await send();
+    assert.equal(s.created.length, 0);
+    s.chrome.runtime.onInstalled.listeners[0]({reason: "install"});
+    await send();
+    assert.equal(s.created.length, 1);
+    assert.equal(s.created[0].url, s.chrome.runtime.getURL("popup.html"));
+    s.chrome.action.onClicked.listeners[0]({id: 1, url: "https://unrelated.example.test/"});
+    await send();
+    assert.equal(s.created.length, 1);
   } finally {
     globalThis.chrome = savedChrome;
     globalThis.fetch = savedFetch;
@@ -312,6 +418,7 @@ test("inline approval accepts only the service's top-level sender and never retu
   s.chrome.runtime = {id: "fake-extension-id", getURL: path => "chrome-extension://fake-extension-id/" + path,
     onStartup: event(), onInstalled: event(), onMessage: event()};
   s.chrome.permissions.onAdded = event(); s.chrome.alarms.onAlarm = event();
+  s.chrome.action = {onClicked: event()};
   s.chrome.cookies.onChanged = event();
   s.chrome.storage.local.setAccessLevel = s.chrome.storage.session.setAccessLevel = async () => {};
   const savedChrome = globalThis.chrome, savedFetch = globalThis.fetch;
@@ -370,4 +477,47 @@ test("connection page renders inline approval and ignores synthetic clicks", asy
   phase = "retry-chatgpt"; poll(); await settle();
   assert.equal(elements["flow-primary"].textContent, "Return to ChatGPT");
   assert.match(elements["flow-message"].textContent, /No Google sign-in needed/);
+});
+
+test("setup page guides missing install links and requires one explicit Google action", async () => {
+  const html = await readFile(new URL("../popup.html", import.meta.url), "utf8");
+  const elements = Object.fromEntries([...html.matchAll(/id="([^"]+)"/g)].map(([, id]) => [id, {
+    hidden: true, listeners: {}, value: "", addEventListener(name, fn) {this.listeners[name] = fn;},
+    setAttribute() {}, removeAttribute() {}, focus() {}, select() {}, reportValidity() {return true;},
+  }]));
+  const sent = [], opened = [];
+  let phase = "connected", chatgptUrl = "", poll, permit, permissionCalls = 0;
+  const settle = async () => {for (let i = 0; i < 4; i++) await new Promise(setImmediate);};
+  const source = (await readFile(new URL("../popup.js", import.meta.url), "utf8")).replace(/^import .*;\r?\n/gm, "");
+  vm.runInNewContext(source, {
+    SERVER, URL, GOOGLE_ACCESS: {}, confirm: () => true,
+    document: {getElementById: id => elements[id]}, navigator: {clipboard: {async writeText() {}}},
+    chrome: {runtime: {async sendMessage(message) {sent.push(message); return {phase, chatgptUrl, mcpUrl: SERVER + "/mcp"};}},
+      tabs: {async create(values) {opened.push(values);}},
+      permissions: {request() {permissionCalls++; return new Promise(resolve => {permit = resolve;});}}},
+    setInterval: callback => {poll = callback;},
+  });
+  await settle();
+  assert.equal(elements.connected.hidden, false);
+  await elements["connect-chatgpt"].listeners.click();
+  assert.equal(elements["chatgpt-guide"].hidden, false);
+  assert.equal(opened.length, 0);
+  chatgptUrl = "https://chatgpt.com/plugins/keep-context-example";
+  await poll();
+  await elements["connect-chatgpt"].listeners.click();
+  assert.deepEqual(opened[0].url, chatgptUrl);
+  phase = "start"; await poll();
+  elements.email.value = "alice@example.test";
+  const event = {preventDefault() {}};
+  const first = elements["connect-form"].listeners.submit(event);
+  await elements["connect-form"].listeners.submit(event);
+  assert.equal(permissionCalls, 1);
+  assert.equal(sent.filter(m => m.action === "begin").length, 0);
+  permit(true); await first;
+  assert.equal(sent.filter(m => m.action === "begin").length, 1);
+  assert.equal(sent.find(m => m.action === "begin").consent, true);
+  phase = "done"; await poll();
+  assert.equal(elements.done.hidden, false);
+  assert.equal(elements.connected.hidden, true);
+  assert.equal(elements.heading.textContent, "Your notes are ready.");
 });

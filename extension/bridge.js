@@ -28,6 +28,18 @@ export function allowedCallback(value) {
   } catch { return false; }
 }
 
+export function chatgptInstallUrl(value) {
+  if (!value) return "";
+  try {
+    const url = new URL(value);
+    if (url.protocol === "https:" && url.host === "chatgpt.com" && !url.username &&
+        !url.password && !url.search && !url.hash &&
+        ["/plugins/", "/apps/", "/settings/plugins-settings/"].some(p => url.pathname.startsWith(p)) &&
+        !url.pathname.includes("oauth")) return url.href;
+  } catch { /* Reject untrusted configuration without echoing its contents. */ }
+  throw new Error("The ChatGPT install link is invalid. Contact the host.");
+}
+
 export class Bridge {
   constructor(chrome, fetch, server, crypto = globalThis.crypto, now = () => Date.now()) {
     // Native browser fetch rejects a Bridge receiver ("Illegal invocation").
@@ -72,6 +84,41 @@ export class Bridge {
     return key;
   }
 
+  async openSetup(source = null) {
+    const ticket = connectionTicket(source?.url, this.server);
+    if (ticket) await this.chrome.storage.session.set({chatgptFlow: {tabId: source.id, ticket}});
+    const {setupTabId} = await this.chrome.storage.session.get("setupTabId");
+    const saved = Number.isInteger(setupTabId)
+      ? await this.chrome.tabs.get(setupTabId).catch(() => null) : null;
+    const url = this.chrome.runtime.getURL("popup.html");
+    if (saved?.url === url) await this.chrome.tabs.update(saved.id, {active: true});
+    else {
+      const tab = await this.chrome.tabs.create({url});
+      await this.chrome.storage.session.set({setupTabId: tab.id});
+    }
+    return {phase: "start"};
+  }
+
+  async returnAfterSignIn(login) {
+    if (!login || login.returned) return;
+    // Focus only our own setup or the exact saved consent page, never an arbitrary
+    // active tab. Google can keep spinning after its cookie has already arrived.
+    const {chatgptFlow} = await this.chrome.storage.session.get("chatgptFlow");
+    const source = chatgptFlow && await this.chrome.tabs.get(chatgptFlow.tabId).catch(() => null);
+    if (source && connectionTicket(source.url, this.server) === chatgptFlow.ticket) {
+      await this.chrome.tabs.update(source.id, {active: true});
+    } else {
+      const setup = Number.isInteger(login.setupTabId)
+        ? await this.chrome.tabs.get(login.setupTabId).catch(() => null) : null;
+      if (!setup || setup.url !== this.chrome.runtime.getURL("popup.html")) return;
+      await this.chrome.tabs.update(setup.id, {active: true});
+    }
+    const {login: current} = await this.chrome.storage.session.get("login");
+    if (current?.started === login.started) {
+      await this.chrome.storage.session.set({login: {...current, returned: true}});
+    }
+  }
+
   async begin({email, invitation = "", consent}) {
     if (consent !== true) throw new Error("Approve the connection permission first.");
     email = String(email || "").trim();
@@ -86,9 +133,11 @@ export class Bridge {
       const {deviceKey} = await this.chrome.storage.local.get("deviceKey");
       if (!deviceKey) await this.newKey();
       const old = await this.chrome.cookies.get({url: GOOGLE, name: "oauth_token"});
+      const {setupTabId} = await this.chrome.storage.session.get("setupTabId");
       const tab = await this.chrome.tabs.create({url: GOOGLE});
       await this.chrome.storage.session.set({login: {
         email, invitation, tabId: tab.id, started: this.now(), baseline: await this.hash(old?.value || ""),
+        ...(Number.isInteger(setupTabId) ? {setupTabId} : {}),
       }});
       // The worker may be asleep when the ten-minute connection window ends.
       await this.chrome.alarms.create("connection-expiry", {delayInMinutes: 10});
@@ -124,7 +173,7 @@ export class Bridge {
     }
     const tab = await this.chrome.tabs.get(login.tabId).catch(() => null);
     if (!tab?.url || new URL(tab.url).origin !== "https://accounts.google.com") {
-      throw new Error("Keep the Google sign-in tab open, then try Finish connection again.");
+      throw new Error("Google sign-in was closed. Choose Start over to try again.");
     }
     const cookie = await this.chrome.cookies.get({url: GOOGLE, name: "oauth_token"});
     if (!cookie || !/^oauth2_\d+\/\S+$/.test(cookie.value) ||
@@ -141,6 +190,7 @@ export class Bridge {
       await this.chrome.permissions.remove(GOOGLE_ACCESS);
       await this.chrome.alarms.clear("connection-expiry");
       await this.chrome.alarms.create("connection-progress", {periodInMinutes: 0.5});
+      await this.returnAfterSignIn(login);
       return {phase: "working"};
     } finally { this.inFlight = false; }
   }
@@ -150,8 +200,10 @@ export class Bridge {
         change.cookie.domain.replace(/^\./, "") !== "accounts.google.com") return;
     const {login} = await this.chrome.storage.session.get("login");
     if (!login || login.submitted) return;
-    try { await this.finish(); }
-    catch { /* Manual Finish remains available; never log a cookie or network exception. */ }
+    // Check server progress first: a lost POST reply may already have consumed
+    // the cookie. Events and polling must share the same recovery path.
+    try { await this.status(); }
+    catch { /* Polling recovers missed events/lost replies; never log Google data. */ }
   }
 
   async activeFlow() {
@@ -190,9 +242,7 @@ export class Bridge {
   async flowSetup(tab) {
     const ticket = connectionTicket(tab?.url, this.server);
     if (!ticket) throw new Error("Open the connection page from ChatGPT.");
-    await this.chrome.storage.session.set({chatgptFlow: {tabId: tab.id, ticket}});
-    await this.chrome.tabs.create({url: this.chrome.runtime.getURL("popup.html")});
-    return {phase: "start"};
+    return this.openSetup(tab);
   }
 
   async status(providedFlow = null) {
@@ -214,9 +264,11 @@ export class Bridge {
       await this.chrome.permissions.remove(GOOGLE_ACCESS);
       await this.chrome.alarms.clear("connection-progress");
       await this.chrome.alarms.clear("connection-expiry");
+      await this.returnAfterSignIn(login);
       const flow = providedFlow || await this.activeFlow();
       if (flow) return this.readFlow(flow, state.email, config.mcp_url);
-      return {phase: "connected", email: state.email, mcpUrl: config.mcp_url};
+      return {phase: state.chatgpt_connected ? "done" : "connected", email: state.email,
+        mcpUrl: config.mcp_url, chatgptUrl: chatgptInstallUrl(config.chatgpt_url)};
     }
     if (state.status === "connecting") {
       // The server may have accepted setup even when the POST response was lost.
@@ -224,6 +276,7 @@ export class Bridge {
       await this.chrome.permissions.remove(GOOGLE_ACCESS);
       await this.chrome.alarms.clear("connection-expiry");
       await this.chrome.alarms.create("connection-progress", {periodInMinutes: 0.5});
+      await this.returnAfterSignIn(login);
       return {phase: "working"};
     }
     if (state.status === "failed") {
@@ -241,10 +294,20 @@ export class Bridge {
       await this.chrome.alarms.clear("connection-progress");
       await this.chrome.alarms.clear("connection-expiry");
       return {phase: "start", invitationRequired: config.invitation_required,
-        error: "Setup was interrupted. Click Connect Google Keep to sign in again."};
+        error: "Setup was interrupted. Sign in with Google again."};
+    }
+    if (login && await this.chrome.permissions.contains(GOOGLE_ACCESS)) {
+      // Read server progress before considering a cookie: an accepted POST with
+      // a lost reply must never trigger a second exchange of the one-use token.
+      try { return await this.finish(); }
+      catch (error) {
+        if (!error.message.startsWith("Finish signing in")) {
+          return {phase: "google", error: error.message};
+        }
+      }
     }
     return {phase: login ? "google" : "start", invitationRequired: config.invitation_required,
-      ...(expired ? {error: "Sign-in timed out. Click Connect Google Keep to start again."} : {})};
+      ...(expired ? {error: "Sign-in timed out. Sign in with Google again."} : {})};
   }
 
   async restart() {
@@ -260,6 +323,17 @@ export class Bridge {
     await this.chrome.alarms.clear("connection-expiry");
     await this.chrome.alarms.clear("connection-progress");
     return {phase: "start"};
+  }
+
+  async showGoogle() {
+    const {login} = await this.chrome.storage.session.get("login");
+    const tab = login && await this.chrome.tabs.get(login.tabId).catch(() => null);
+    if (!tab?.url || new URL(tab.url).origin !== "https://accounts.google.com" ||
+        this.now() - login.started >= 10 * 60 * 1000) {
+      throw new Error("Google sign-in closed or timed out. Choose Start over.");
+    }
+    await this.chrome.tabs.update(tab.id, {active: true});
+    return {phase: "google"};
   }
 
   async decide(action) {

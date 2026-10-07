@@ -14,7 +14,14 @@ function newBrowserSession() {
   void ready.catch(() => {});
 }
 chrome.runtime.onStartup.addListener(newBrowserSession);
-chrome.runtime.onInstalled.addListener(newBrowserSession);
+chrome.runtime.onInstalled.addListener(details => {
+  newBrowserSession();
+  // Installation is the user's first step. Updates must not open surprise tabs.
+  if (details.reason === "install") void ready.then(() => bridge.openSetup()).catch(() => {});
+});
+chrome.action.onClicked.addListener(tab => {
+  void ready.then(() => bridge.openSetup(tab)).catch(() => {});
+});
 
 const cookieChanged = change => { void ready.then(() => bridge.changed(change)).catch(() => {}); };
 function watchGoogleCookie() {
@@ -40,6 +47,7 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
   const tab = page ? {id: sender.tab.id, url: sender.url} : null;
   const calls = popup ? {
     status: () => bridge.status(), begin: () => bridge.begin(message), finish: () => bridge.finish(),
+    "google-tab": () => bridge.showGoogle(),
     allow: () => bridge.decide("allow"), cancel: () => bridge.decide("cancel"),
     disconnect: () => bridge.disconnect(), restart: () => bridge.restart(),
     "retry-chatgpt": () => bridge.decide("retry"), resume: () => bridge.decide("allow"),

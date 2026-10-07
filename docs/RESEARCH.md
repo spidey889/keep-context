@@ -1,5 +1,7 @@
 # Integration research — 2026-10-06
 
+Follow-up, 2026-10-07: [guided setup decisions](SIMPLER_SETUP.md) remove avoidable browser handoffs without replacing consumer authentication or weakening consent. The normal public target is install, Google sign-in, ChatGPT approval. Stable hosting and actual Chrome/ChatGPT publication remain separate release work.
+
 ## Decision
 
 Use Python, maintained `gkeepapi`/`gpsoauth` dependencies, and the official `mcp` SDK. One consumer account per process. Authenticate Google once in a local hidden-input command; authenticate ChatGPT separately with OAuth 2.1/PKCE. Use Streamable HTTP for ChatGPT and stdio for local clients. No notes database, embeddings, Google Cloud project, paid AI API, frontend build, or write tools are needed for this MVP.

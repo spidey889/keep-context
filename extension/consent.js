@@ -30,7 +30,7 @@
       primary.hidden = state.phase === "working";
       const choices = {
         start: ["Connect Google Keep once, then approve ChatGPT here.", "Connect Google Keep", "flow-setup"],
-        google: ["Finish Google's sign-in, then finish the connection in Keep Context.", "Open Keep Context", "flow-setup"],
+        google: ["Finish Google's sign-in. We'll bring you back automatically.", "Open connection progress", "flow-setup"],
         working: ["Checking your Google Keep connection…", "", "refresh"],
         approve: ["Allow ChatGPT to search and read this account's notes? It cannot edit or delete notes.", "Allow ChatGPT", "flow-allow"],
         resume: ["Your approval was saved. Finish returning to ChatGPT.", "Finish ChatGPT connection", "flow-allow"],

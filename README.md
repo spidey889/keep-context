@@ -14,7 +14,11 @@ Ask things like **“What did I write about my garden?”**, **“Search my note
 
 ## Simpler setup preview
 
+[Why this flow is simpler](docs/SIMPLER_SETUP.md) · [Release requirements](docs/RELEASE.md)
+
 A new [browser extension and hosted pilot](docs/CONSUMER.md) moves setup toward **install → Google sign-in → approve ChatGPT**. Users do not copy cookies, install Python, run a terminal or choose a second password. Hosted mode isolates each account and stores credentials encrypted; it never loads the local owner's vault.
+
+The extension opens setup on installation, detects completed Google sign-in automatically, and returns users to their next step. No pinning or manual Finish button. A real ChatGPT listing link, when configured by the host, opens directly; the preview guides the one-time custom-server form when no listing exists.
 
 This is a preview, not a store-listed release. The operator must deploy a stable service and provide an extension built for its origin. ChatGPT's custom-server form is the established fallback; a [private-test plugin ZIP](docs/RELEASE.md) also prepares the connection details for upload. That upload UI is not yet manually verified. See the [simple connection guide](https://spidey889.github.io/keep-context/connect.html), [privacy explanation](https://spidey889.github.io/keep-context/privacy.html) and [operator guide](docs/CONSUMER.md).
 

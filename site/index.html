@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#f7f6f2">
-    <meta name="description" content="Search and read your Google Keep notes in ChatGPT. A small, open-source, read-only MCP server that runs on your computer.">
+    <meta name="description" content="Search and read your Google Keep notes in ChatGPT. An open-source, read-only connection with a simpler browser setup in preview.">
     <meta property="og:title" content="Keep Context — Your Keep notes. One conversation.">
     <meta property="og:description" content="Find saved ideas, read full notes, and pick up unfinished tasks from Google Keep in ChatGPT.">
     <meta property="og:type" content="website">
@@ -38,7 +38,7 @@
               <a class="button" href="#setup">Get started <span aria-hidden="true">↗</span></a>
               <a class="text-link" href="https://github.com/spidey889/keep-context">Explore the code <span aria-hidden="true">→</span></a>
             </div>
-            <p class="hero-meta">Read only <span>·</span> Open source <span>·</span> Runs on your computer</p>
+            <p class="hero-meta">Read only <span>·</span> Open source <span>·</span> Browser setup in preview</p>
           </div>
 
           <figure class="example">
@@ -81,36 +81,18 @@
 
         <section class="setup" id="setup" aria-labelledby="setup-title">
           <div class="setup-heading">
-            <p class="eyebrow">Get connected</p>
-            <h2 id="setup-title">A small server.<br>Your own account.</h2>
-            <p>Install <a href="https://docs.astral.sh/uv/getting-started/installation/">uv</a> and Python 3.11+, then open a terminal. Setup includes one manual Google sign-in step; the guide walks you through it.</p>
-            <a class="text-link" href="https://github.com/spidey889/keep-context/blob/main/docs/AUTHENTICATION.md">Read the sign-in guide <span aria-hidden="true">→</span></a>
-            <p>A <a href="./connect.html">simpler browser-extension setup</a> is in preview. It removes token copying and the terminal for invited users; store publication is still ahead.</p>
+            <p class="eyebrow">A simpler setup · Preview</p>
+            <h2 id="setup-title">Sign in.<br>Start asking.</h2>
+            <p>Keep Context opens a setup page and guides you through connecting your notes. No terminal, copied tokens or extra password for invited users.</p>
+            <a class="text-link" href="./connect.html">Try the guided preview <span aria-hidden="true">→</span></a>
+            <p>The preview is not store-listed yet. Your trusted host supplies the extension; public installation still needs store approval.</p>
           </div>
           <ol class="setup-steps">
-            <li>
-              <div class="step-heading"><span class="step-number">1</span><h3>Connect Google Keep</h3></div>
-              <pre tabindex="0"><code>git clone https://github.com/spidey889/keep-context.git
-cd keep-context
-uv sync --locked
-uv run keep-context connect
-uv run keep-context doctor</code></pre>
-              <p>Save the separate connection password you choose. Google credentials stay in your OS vault.</p>
-            </li>
-            <li>
-              <div class="step-heading"><span class="step-number">2</span><h3>Start the server</h3></div>
-              <p>Install <a href="https://developers.cloudflare.com/tunnel/downloads/">cloudflared</a>. On Windows:</p>
-              <pre tabindex="0"><code>winget install -e --id Cloudflare.cloudflared</code></pre>
-              <pre tabindex="0"><code>uv run keep-context serve --tunnel</code></pre>
-              <p>Keep the terminal running. Copy the printed HTTPS URL ending in <code>/mcp</code>.</p>
-            </li>
-            <li>
-              <div class="step-heading"><span class="step-number">3</span><h3>Add it to ChatGPT</h3></div>
-              <p>Open Plugins → Add → Create custom MCP server. Paste your server URL, choose OAuth with dynamic client registration, and approve using your connection password.</p>
-              <p>Select Keep Context with <code>@</code> in a new chat. Then ask about your notes.</p>
-              <a class="text-link" href="https://github.com/spidey889/keep-context/blob/main/docs/CHATGPT.md">Full ChatGPT setup <span aria-hidden="true">→</span></a>
-            </li>
+            <li><div class="step-heading"><span class="step-number">1</span><h3>Install Keep Context</h3></div><p>Setup opens automatically. Enter your Google email and review the connection notice.</p></li>
+            <li><div class="step-heading"><span class="step-number">2</span><h3>Sign in with Google</h3></div><p>Complete Google's sign-in. Keep Context finishes in the background and brings you back to your next step.</p></li>
+            <li><div class="step-heading"><span class="step-number">3</span><h3>Connect ChatGPT</h3></div><p>Add Keep Context and approve access to your notes. A configured listing opens directly; this unpublished preview guides a one-time custom-server setup.</p><p>Choose Keep Context in a new chat. Then ask about your notes.</p></li>
           </ol>
+          <details><summary>Run your own local server</summary><p>The original command-line setup remains available for developers and people who want their credentials in their own OS vault. <a href="https://github.com/spidey889/keep-context#quick-start">Local setup instructions →</a></p></details>
         </section>
 
         <section class="details" aria-labelledby="details-title">
@@ -119,7 +101,7 @@ uv run keep-context doctor</code></pre>
             <div><h3>Your notes stay in Keep</h3><p>The server holds an in-memory copy for reading, with no notes database. Notes you ask ChatGPT to read are shared with ChatGPT.</p></div>
             <div><h3>Read access, by design</h3><p>It can search and read notes, labels and checklists. It cannot create, edit or delete them. Local mode uses one Google account per server.</p></div>
             <div><h3>Simple, with honest limits</h3><p>Consumer Keep access uses an unofficial API. Search is keyword based; prose TODO detection is a best effort. Images, audio and reminders are outside this MVP.</p></div>
-            <div><h3>Keep your server running</h3><p>The temporary URL changes when you restart the tunnel. For everyday use, the setup guide covers a stable HTTPS address.</p></div>
+            <div><h3>Keep your server running</h3><p>The hosted preview needs a trusted, online service. A stable host lets you ask about notes while your computer is off. Local servers and development tunnels need their computer to stay running.</p></div>
           </div>
         </section>
       </main>

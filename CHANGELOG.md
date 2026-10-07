@@ -1,5 +1,15 @@
 # Changelog
 
+## Guided setup for ordinary users — 2026-10-07
+
+- Extension 0.3.0 opens a persistent setup page on first installation. The icon reuses that page; updates do not open surprise tabs. Removed pinning, the dismissible popup, manual Finish connection and a redundant agreement checkbox. One explicit sign-in action follows the clear host/credential notice; browser permission and ChatGPT approval remain explicit.
+- Cookie events and progress polling share the same server-first recovery path. They detect completed sign-in, preserve accepted jobs after lost replies, never re-exchange a consumed token, and focus only the validated original consent/owned setup tab once. A closed or repurposed tab is never navigated or focused.
+- Added Google/ChatGPT/Ready states and an optional validated `KEEP_CHATGPT_URL` for real published/workspace listings. Without a listing, reveal a guided copy/open fallback. Ready requires a live account-bound access or refresh grant. Fixed stale completed jobs reporting a connection after disconnect or management-key rotation.
+- Rewrote the homepage and connection guide around the guided flow, with developer installation in secondary details. Documented the first-principles decisions and exact remaining publication requirements; no store link or one-click installation was invented.
+- Windows/Python 3.14: all 95 Python and 27 Node tests pass, including real TCP enrollment, automatic completion, lost approval recovery, PKCE, all five tools and revocation. Lint, formatting, wheel/source builds, static HTML/CSS/link validation and archive checks pass. An isolated local TCP MCP check also passed all five tools against the saved real Keep account, readiness, safe errors and disconnect; the original encrypted registry remained byte-for-byte unchanged.
+- Prepared the twelve-file guided preview archive and updated the existing Desktop preview without reading browser storage or changing its ID. The old temporary server/tunnel is no longer running; retain its saved account/grants and origin rather than resetting user data or silently migrating the OAuth audience. That archive is an offline development snapshot, not a permanent store release. A stable host and store publication are still required. Actual 0.3.0 first-install opening/fresh Google return/permission removal remain manual checks; the prior 0.2.0 live browser proof is recorded separately.
+- Continue normal commit history after the owner's tenth commit; this change is a separate eleventh commit, with no squash or amendment.
+
 ## Hosted ChatGPT connection recovery — 2026-10-06
 
 - At the owner's request, kept the existing preview as commit nine and recorded the expiry/inline-approval repair as a separate tenth commit. Restored the pre-repair preview parent without changing the tested implementation or running service.

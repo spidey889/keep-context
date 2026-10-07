@@ -19,7 +19,8 @@ const chrome = {
 const bridge = new Bridge(chrome, fetch, server);
 await bridge.begin({email: "fake-user@example.test", consent: true});
 cookie = {value: "oauth2_4/fake-only"};
-await bridge.finish();
+// Polling must complete sign-in without a cookie event or a manual finish action.
+assert.equal((await bridge.status()).phase, "working");
 for (let i = 0; i < 100; i++) {
   const state = await bridge.status();
   if (state.phase === "connected") break;
@@ -65,6 +66,7 @@ assert.equal(redirect.searchParams.get("state"), "fake-state");
 const tokens = await request("/token", {method: "POST", body: new URLSearchParams({
   grant_type: "authorization_code", client_id: client.client_id, code_verifier: verifier,
   code: redirect.searchParams.get("code"), redirect_uri: callback, resource: server + "/mcp"})});
+assert.equal((await bridge.status()).phase, "done");
 const headers = {"Content-Type": "application/json", Accept: "application/json, text/event-stream",
   Authorization: "Bearer " + tokens.access_token};
 let id = 0;
